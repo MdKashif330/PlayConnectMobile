@@ -11,7 +11,7 @@ import {
 import Icon from "../../components/Icon";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useTheme } from "../../contexts/ThemeContext"; // Import useTheme
+import { useTheme } from "../../contexts/ThemeContext";
 
 export default function AppSettings() {
   const navigation = useNavigation();
