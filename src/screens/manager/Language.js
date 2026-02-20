@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,33 @@ import {
 } from "react-native";
 import Icon from "../../components/Icon";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../../contexts/ThemeContext"; // Add this import
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Language() {
   const navigation = useNavigation();
+  const { theme } = useTheme(); // Add this line
+
+  // Create styles FIRST
+  const styles = createStyles(theme);
+
   const [selectedLanguage, setSelectedLanguage] = useState("english");
+
+  // Load saved language on mount
+  useEffect(() => {
+    loadSavedLanguage();
+  }, []);
+
+  const loadSavedLanguage = async () => {
+    try {
+      const savedLanguage = await AsyncStorage.getItem("appLanguage");
+      if (savedLanguage) {
+        setSelectedLanguage(savedLanguage);
+      }
+    } catch (error) {
+      console.error("Error loading language:", error);
+    }
+  };
 
   const languages = [
     { id: "english", name: "English", nativeName: "English", flag: "🇬🇧" },
@@ -52,7 +74,7 @@ export default function Language() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon icon="back" size={24} color="#333" />
+          <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Language</Text>
         <View style={{ width: 24 }} />
@@ -80,14 +102,14 @@ export default function Language() {
               </View>
 
               {selectedLanguage === language.id && (
-                <Icon icon="checkmark" size={24} color="#2196F3" />
+                <Icon icon="checkmark" size={24} color={theme.primary} />
               )}
             </TouchableOpacity>
           ))}
         </View>
 
         <View style={styles.noteCard}>
-          <Icon icon="info" size={20} color="#2196F3" />
+          <Icon icon="info" size={20} color={theme.primary} />
           <Text style={styles.noteText}>
             Changing language will update the app interface. Some content may
             not be fully translated.
@@ -106,104 +128,106 @@ export default function Language() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 15,
-  },
-  languageList: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    overflow: "hidden",
-    elevation: 2,
-    marginBottom: 20,
-  },
-  languageItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  selectedItem: {
-    backgroundColor: "#E3F2FD",
-  },
-  languageInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  flag: {
-    fontSize: 30,
-    marginRight: 15,
-  },
-  languageNames: {
-    justifyContent: "center",
-  },
-  languageName: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
-  },
-  nativeName: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 2,
-  },
-  noteCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E3F2FD",
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  noteText: {
-    flex: 1,
-    marginLeft: 10,
-    color: "#1565C0",
-    fontSize: 14,
-  },
-  helpSection: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  helpTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
-  helpText: {
-    fontSize: 14,
-    color: "#666",
-    lineHeight: 20,
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      backgroundColor: theme.card,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    content: {
+      flex: 1,
+      padding: 20,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.textSecondary,
+      marginBottom: 15,
+    },
+    languageList: {
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      overflow: "hidden",
+      elevation: 2,
+      marginBottom: 20,
+    },
+    languageItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    selectedItem: {
+      backgroundColor: theme.primaryLight,
+    },
+    languageInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    flag: {
+      fontSize: 30,
+      marginRight: 15,
+    },
+    languageNames: {
+      justifyContent: "center",
+    },
+    languageName: {
+      fontSize: 16,
+      fontWeight: "500",
+      color: theme.text,
+    },
+    nativeName: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    noteCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.primaryLight,
+      padding: 15,
+      borderRadius: 8,
+      marginBottom: 20,
+    },
+    noteText: {
+      flex: 1,
+      marginLeft: 10,
+      color: theme.primary,
+      fontSize: 14,
+    },
+    helpSection: {
+      backgroundColor: theme.card,
+      padding: 20,
+      borderRadius: 12,
+      marginBottom: 20,
+    },
+    helpTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 8,
+    },
+    helpText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      lineHeight: 20,
+    },
+  });

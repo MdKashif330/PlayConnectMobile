@@ -11,10 +11,16 @@ import {
 } from "react-native";
 import Icon from "../../components/Icon";
 import { Calendar } from "react-native-calendars";
+import { useTheme } from "../../contexts/ThemeContext"; // Add this import
 import { vacationAPI, venueAPI } from "../../services/api";
 import { getUser, getToken } from "../../services/authService";
 
 const ManagerVacations = () => {
+  const { theme } = useTheme(); // Add this line
+
+  // Create styles FIRST
+  const styles = createStyles(theme);
+
   // State variables
   const [selectedDates, setSelectedDates] = useState({});
   const [startDate, setStartDate] = useState(null);
@@ -151,7 +157,7 @@ const ManagerVacations = () => {
         [day.dateString]: {
           selected: true,
           startingDay: true,
-          color: "#2196F3",
+          color: theme.primary,
         },
       });
     } else if (!endDate) {
@@ -183,7 +189,7 @@ const ManagerVacations = () => {
       datesInRange.forEach((date, index) => {
         newSelectedDates[date] = {
           selected: true,
-          color: isEditing ? "#4CAF50" : "#2196F3",
+          color: isEditing ? theme.success : theme.primary,
           startingDay: index === 0,
           endingDay: index === datesInRange.length - 1,
         };
@@ -198,7 +204,7 @@ const ManagerVacations = () => {
         [day.dateString]: {
           selected: true,
           startingDay: true,
-          color: isEditing ? "#4CAF50" : "#2196F3",
+          color: isEditing ? theme.success : theme.primary,
         },
       });
     }
@@ -222,7 +228,7 @@ const ManagerVacations = () => {
         allMarkedDates[date] = {
           selected: true,
           disabled: true,
-          color: "#FF9800", // Orange for existing vacations
+          color: theme.warning, // Orange for existing vacations
           startingDay: index === 0,
           endingDay: index === datesInRange.length - 1,
         };
@@ -264,7 +270,7 @@ const ManagerVacations = () => {
     datesInRange.forEach((date, index) => {
       newSelectedDates[date] = {
         selected: true,
-        color: "#4CAF50", // Green for editing
+        color: theme.success, // Green for editing
         startingDay: index === 0,
         endingDay: index === datesInRange.length - 1,
       };
@@ -402,7 +408,7 @@ const ManagerVacations = () => {
   if (loading && vacations.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={theme.primary} />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -454,7 +460,7 @@ const ManagerVacations = () => {
         </View>
       ) : (
         <View style={styles.noVenues}>
-          <Icon icon="info" size={24} color="#FF9800" />
+          <Icon icon="info" size={24} color={theme.warning} />
           <Text style={styles.noVenuesText}>
             No venues found. Please create a venue first.
           </Text>
@@ -471,20 +477,25 @@ const ManagerVacations = () => {
               markingType="period"
               minDate={new Date().toISOString().split("T")[0]}
               theme={{
-                selectedDayBackgroundColor: "#2196F3",
+                selectedDayBackgroundColor: theme.primary,
                 selectedDayTextColor: "#ffffff",
-                todayTextColor: "#2196F3",
-                arrowColor: "#2196F3",
-                monthTextColor: "#2196F3",
+                todayTextColor: theme.primary,
+                arrowColor: theme.primary,
+                monthTextColor: theme.primary,
                 textMonthFontWeight: "bold",
-                textDisabledColor: "#ccc",
+                textDisabledColor: theme.textSecondary + "50",
+                backgroundColor: theme.card,
+                calendarBackground: theme.card,
+                textSectionTitleColor: theme.text,
+                dayTextColor: theme.text,
+                monthTextColor: theme.text,
               }}
             />
           </View>
 
           {/* Date Summary */}
           <View style={styles.dateSummary}>
-            <Icon icon="calendar" size={20} color="#2196F3" />
+            <Icon icon="calendar" size={20} color={theme.primary} />
             <Text style={styles.dateSummaryText}>
               {startDate && endDate
                 ? `Selected: ${startDate} to ${endDate}`
@@ -502,6 +513,7 @@ const ManagerVacations = () => {
             <TextInput
               style={styles.reasonInput}
               placeholder="E.g., Maintenance, Holidays, Renovation"
+              placeholderTextColor={theme.placeholder}
               value={reason}
               onChangeText={setReason}
               multiline
@@ -518,7 +530,7 @@ const ManagerVacations = () => {
                 onPress={cancelEdit}
                 disabled={saving}
               >
-                <Icon icon="close" size={20} color="#FF3B30" />
+                <Icon icon="close" size={20} color={theme.danger} />
                 <Text style={styles.cancelButtonText}>Cancel Edit</Text>
               </TouchableOpacity>
             )}
@@ -552,7 +564,7 @@ const ManagerVacations = () => {
 
             {vacations.length === 0 ? (
               <View style={styles.emptyState}>
-                <Icon icon="calendar" size={50} color="#ccc" />
+                <Icon icon="calendar" size={50} color={theme.textSecondary} />
                 <Text style={styles.emptyStateText}>
                   No vacation periods saved
                 </Text>
@@ -581,14 +593,14 @@ const ManagerVacations = () => {
                           onPress={() => editVacation(vacation)}
                           disabled={saving}
                         >
-                          <Icon icon="edit" size={18} color="#2196F3" />
+                          <Icon icon="edit" size={18} color={theme.primary} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.deleteButton}
                           onPress={() => deleteVacation(vacation._id)}
                           disabled={saving}
                         >
-                          <Icon icon="delete" size={18} color="#FF3B30" />
+                          <Icon icon="delete" size={18} color={theme.danger} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -617,275 +629,276 @@ const ManagerVacations = () => {
   );
 };
 
-// ... Keep all the styles from the previous ManagerVacations.js ...
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  contentContainer: {
-    paddingBottom: 30,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#666",
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#666",
-  },
-  venueSelector: {
-    backgroundColor: "white",
-    marginHorizontal: 15,
-    marginTop: 10,
-    padding: 15,
-    borderRadius: 10,
-    elevation: 2,
-  },
-  venueLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
-    marginBottom: 10,
-  },
-  venueScroll: {
-    flexDirection: "row",
-  },
-  venueButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#f0f0f0",
-    marginRight: 10,
-  },
-  venueButtonActive: {
-    backgroundColor: "#2196F3",
-  },
-  venueButtonText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  venueButtonTextActive: {
-    color: "white",
-    fontWeight: "500",
-  },
-  noVenues: {
-    backgroundColor: "#FFF3E0",
-    marginHorizontal: 15,
-    marginTop: 10,
-    padding: 15,
-    borderRadius: 10,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  noVenuesText: {
-    marginLeft: 10,
-    color: "#FF9800",
-    fontSize: 14,
-    flex: 1,
-  },
-  calendarContainer: {
-    backgroundColor: "white",
-    marginHorizontal: 15,
-    marginTop: 15,
-    borderRadius: 10,
-    padding: 15,
-    elevation: 2,
-  },
-  dateSummary: {
-    backgroundColor: "#E3F2FD",
-    marginHorizontal: 15,
-    marginTop: 15,
-    padding: 15,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: "#2196F3",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  dateSummaryText: {
-    fontSize: 16,
-    color: "#2196F3",
-    fontWeight: "500",
-    marginLeft: 10,
-    flex: 1,
-  },
-  reasonContainer: {
-    backgroundColor: "white",
-    marginHorizontal: 15,
-    marginTop: 15,
-    padding: 15,
-    borderRadius: 10,
-    elevation: 2,
-  },
-  reasonLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
-    marginBottom: 10,
-  },
-  reasonInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    minHeight: 100,
-    textAlignVertical: "top",
-    backgroundColor: "#fafafa",
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    marginHorizontal: 15,
-    marginTop: 20,
-  },
-  button: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 15,
-    borderRadius: 10,
-    elevation: 3,
-  },
-  cancelButton: {
-    backgroundColor: "#FFEBEE",
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: "#FFCDD2",
-  },
-  cancelButtonText: {
-    color: "#FF3B30",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 8,
-  },
-  saveButton: {
-    backgroundColor: "#2196F3",
-  },
-  saveButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 10,
-  },
-  vacationsList: {
-    marginTop: 30,
-    marginHorizontal: 15,
-  },
-  listHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  listTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginRight: 8,
-  },
-  listCount: {
-    fontSize: 16,
-    color: "#666",
-    backgroundColor: "#E0E0E0",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  emptyState: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 30,
-    alignItems: "center",
-    elevation: 2,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: "#666",
-    marginTop: 10,
-    fontWeight: "500",
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: "#999",
-    marginTop: 5,
-    textAlign: "center",
-  },
-  vacationItem: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    elevation: 2,
-  },
-  editingItem: {
-    borderWidth: 2,
-    borderColor: "#4CAF50",
-    backgroundColor: "#F1F8E9",
-  },
-  vacationInfo: {
-    flex: 1,
-  },
-  vacationHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  vacationDates: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    flex: 1,
-  },
-  vacationActions: {
-    flexDirection: "row",
-  },
-  editButton: {
-    padding: 8,
-    marginRight: 5,
-  },
-  deleteButton: {
-    padding: 8,
-  },
-  vacationReason: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  vacationMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  vacationDate: {
-    fontSize: 12,
-    color: "#999",
-  },
-  vacationUpdated: {
-    fontSize: 12,
-    color: "#4CAF50",
-    fontStyle: "italic",
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    contentContainer: {
+      paddingBottom: 30,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background,
+    },
+    loadingText: {
+      marginTop: 10,
+      fontSize: 16,
+      color: theme.textSecondary,
+    },
+    header: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 10,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 5,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: theme.textSecondary,
+    },
+    venueSelector: {
+      backgroundColor: theme.card,
+      marginHorizontal: 15,
+      marginTop: 10,
+      padding: 15,
+      borderRadius: 10,
+      elevation: 2,
+    },
+    venueLabel: {
+      fontSize: 16,
+      fontWeight: "500",
+      color: theme.text,
+      marginBottom: 10,
+    },
+    venueScroll: {
+      flexDirection: "row",
+    },
+    venueButton: {
+      paddingHorizontal: 15,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: theme.background,
+      marginRight: 10,
+    },
+    venueButtonActive: {
+      backgroundColor: theme.primary,
+    },
+    venueButtonText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+    },
+    venueButtonTextActive: {
+      color: "white",
+      fontWeight: "500",
+    },
+    noVenues: {
+      backgroundColor: theme.warning + "20", // 12% opacity
+      marginHorizontal: 15,
+      marginTop: 10,
+      padding: 15,
+      borderRadius: 10,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    noVenuesText: {
+      marginLeft: 10,
+      color: theme.warning,
+      fontSize: 14,
+      flex: 1,
+    },
+    calendarContainer: {
+      backgroundColor: theme.card,
+      marginHorizontal: 15,
+      marginTop: 15,
+      borderRadius: 10,
+      padding: 15,
+      elevation: 2,
+    },
+    dateSummary: {
+      backgroundColor: theme.primaryLight,
+      marginHorizontal: 15,
+      marginTop: 15,
+      padding: 15,
+      borderRadius: 8,
+      borderLeftWidth: 4,
+      borderLeftColor: theme.primary,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    dateSummaryText: {
+      fontSize: 16,
+      color: theme.primary,
+      fontWeight: "500",
+      marginLeft: 10,
+      flex: 1,
+    },
+    reasonContainer: {
+      backgroundColor: theme.card,
+      marginHorizontal: 15,
+      marginTop: 15,
+      padding: 15,
+      borderRadius: 10,
+      elevation: 2,
+    },
+    reasonLabel: {
+      fontSize: 16,
+      fontWeight: "500",
+      color: theme.text,
+      marginBottom: 10,
+    },
+    reasonInput: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 16,
+      minHeight: 100,
+      textAlignVertical: "top",
+      backgroundColor: theme.background,
+      color: theme.text,
+    },
+    buttonContainer: {
+      flexDirection: "row",
+      marginHorizontal: 15,
+      marginTop: 20,
+    },
+    button: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 15,
+      borderRadius: 10,
+      elevation: 3,
+    },
+    cancelButton: {
+      backgroundColor: theme.danger + "20", // 12% opacity
+      marginRight: 10,
+      borderWidth: 1,
+      borderColor: theme.danger + "40", // 25% opacity
+    },
+    cancelButtonText: {
+      color: theme.danger,
+      fontSize: 16,
+      fontWeight: "bold",
+      marginLeft: 8,
+    },
+    saveButton: {
+      backgroundColor: theme.primary,
+    },
+    saveButtonText: {
+      color: "white",
+      fontSize: 16,
+      fontWeight: "bold",
+      marginLeft: 10,
+    },
+    vacationsList: {
+      marginTop: 30,
+      marginHorizontal: 15,
+    },
+    listHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 15,
+    },
+    listTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+      marginRight: 8,
+    },
+    listCount: {
+      fontSize: 16,
+      color: theme.textSecondary,
+      backgroundColor: theme.border,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 10,
+    },
+    emptyState: {
+      backgroundColor: theme.card,
+      borderRadius: 10,
+      padding: 30,
+      alignItems: "center",
+      elevation: 2,
+    },
+    emptyStateText: {
+      fontSize: 16,
+      color: theme.textSecondary,
+      marginTop: 10,
+      fontWeight: "500",
+    },
+    emptyStateSubtext: {
+      fontSize: 14,
+      color: theme.textSecondary + "80", // 50% opacity
+      marginTop: 5,
+      textAlign: "center",
+    },
+    vacationItem: {
+      backgroundColor: theme.card,
+      borderRadius: 10,
+      padding: 15,
+      marginBottom: 10,
+      elevation: 2,
+    },
+    editingItem: {
+      borderWidth: 2,
+      borderColor: theme.success,
+      backgroundColor: theme.success + "10", // 6% opacity
+    },
+    vacationInfo: {
+      flex: 1,
+    },
+    vacationHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 8,
+    },
+    vacationDates: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: theme.text,
+      flex: 1,
+    },
+    vacationActions: {
+      flexDirection: "row",
+    },
+    editButton: {
+      padding: 8,
+      marginRight: 5,
+    },
+    deleteButton: {
+      padding: 8,
+    },
+    vacationReason: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginBottom: 8,
+      lineHeight: 20,
+    },
+    vacationMeta: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    vacationDate: {
+      fontSize: 12,
+      color: theme.textSecondary + "80", // 50% opacity
+    },
+    vacationUpdated: {
+      fontSize: 12,
+      color: theme.success,
+      fontStyle: "italic",
+    },
+  });
 
 export default ManagerVacations;

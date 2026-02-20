@@ -13,12 +13,14 @@ import {
 import { Picker } from "@react-native-picker/picker";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { updateCourt } from "../../services/managerService"; // You'll need to create this
+import { updateCourt } from "../../services/managerService";
+import { useTheme } from "../../contexts/ThemeContext"; // Add this import
 
 export default function AddCourt() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { venueId, court } = route.params || {}; // If editing, court will be passed
+  const { theme } = useTheme(); // Add this line
+  const { venueId, court } = route.params || {};
 
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -41,7 +43,6 @@ export default function AddCourt() {
   ];
 
   useEffect(() => {
-    // Update header title
     navigation.setOptions({
       title: isEditing ? "Edit Court" : "Add New Court",
     });
@@ -81,10 +82,8 @@ export default function AddCourt() {
 
       let response;
       if (isEditing) {
-        // Update existing court
         response = await api.put(`/manager/courts/${court._id}`, courtData);
       } else {
-        // Create new court
         response = await api.post("/manager/courts", courtData);
       }
 
@@ -96,7 +95,6 @@ export default function AddCourt() {
           {
             text: "OK",
             onPress: () => {
-              // Pass refresh callback via navigation params
               if (route.params?.onCourtAdded) {
                 route.params.onCourtAdded();
               }
@@ -117,12 +115,13 @@ export default function AddCourt() {
   };
 
   const totalArea = calculateArea();
+  const styles = createStyles(theme); // Create styles with theme
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#333" />
+          <Icon name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {isEditing ? "Edit Court" : "Add New Court"}
@@ -139,6 +138,7 @@ export default function AddCourt() {
           <TextInput
             style={styles.input}
             placeholder="e.g., Badminton Court 1"
+            placeholderTextColor={theme.placeholder}
             value={form.name}
             onChangeText={(text) => handleChange("name", text)}
           />
@@ -152,12 +152,14 @@ export default function AddCourt() {
               selectedValue={form.sportType}
               onValueChange={(value) => handleChange("sportType", value)}
               style={styles.picker}
+              dropdownIconColor={theme.textSecondary}
             >
               {sportTypes.map((sport) => (
                 <Picker.Item
                   key={sport}
                   label={sport.charAt(0).toUpperCase() + sport.slice(1)}
                   value={sport}
+                  color={theme.text}
                 />
               ))}
             </Picker>
@@ -172,6 +174,7 @@ export default function AddCourt() {
             <TextInput
               style={styles.input}
               placeholder="0"
+              placeholderTextColor={theme.placeholder}
               keyboardType="numeric"
               value={form.length}
               onChangeText={(text) => handleChange("length", text)}
@@ -182,6 +185,7 @@ export default function AddCourt() {
             <TextInput
               style={styles.input}
               placeholder="0"
+              placeholderTextColor={theme.placeholder}
               keyboardType="numeric"
               value={form.width}
               onChangeText={(text) => handleChange("width", text)}
@@ -201,6 +205,7 @@ export default function AddCourt() {
             <TextInput
               style={[styles.input, styles.priceInput]}
               placeholder="1500"
+              placeholderTextColor={theme.placeholder}
               keyboardType="numeric"
               value={form.pricePerSlot}
               onChangeText={(text) => handleChange("pricePerSlot", text)}
@@ -232,7 +237,7 @@ export default function AddCourt() {
       </View>
 
       <View style={styles.noteCard}>
-        <Icon name="info" size={20} color="#2196F3" />
+        <Icon name="info" size={20} color={theme.primary} />
         <Text style={styles.noteText}>
           {isEditing
             ? "Update court information as needed."
@@ -243,132 +248,135 @@ export default function AddCourt() {
   );
 }
 
-// Styles remain exactly the same as your original
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  formCard: {
-    backgroundColor: "white",
-    margin: 15,
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#fafafa",
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    backgroundColor: "#fafafa",
-  },
-  picker: {
-    height: 50,
-  },
-  dimensionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  dimensionInput: {
-    flex: 1,
-    marginHorizontal: 5,
-  },
-  dimensionLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 5,
-  },
-  areaDisplay: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#f0f8ff",
-    color: "#2196F3",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  priceContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  currencySymbol: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#555",
-    marginRight: 10,
-  },
-  priceInput: {
-    flex: 1,
-  },
-  submitButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2196F3",
-    padding: 15,
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  submitButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
-    marginLeft: 10,
-  },
-  noteCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E3F2FD",
-    marginHorizontal: 15,
-    marginBottom: 30,
-    padding: 15,
-    borderRadius: 8,
-  },
-  noteText: {
-    flex: 1,
-    marginLeft: 10,
-    color: "#1565C0",
-    fontSize: 14,
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      backgroundColor: theme.card,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    formCard: {
+      backgroundColor: theme.card,
+      margin: 15,
+      padding: 20,
+      borderRadius: 12,
+      elevation: 2,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 20,
+    },
+    inputGroup: {
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.textSecondary,
+      marginBottom: 8,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 16,
+      backgroundColor: theme.card,
+      color: theme.text,
+    },
+    pickerContainer: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 8,
+      backgroundColor: theme.card,
+    },
+    picker: {
+      height: 50,
+      color: theme.text,
+    },
+    dimensionsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 20,
+    },
+    dimensionInput: {
+      flex: 1,
+      marginHorizontal: 5,
+    },
+    dimensionLabel: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginBottom: 5,
+    },
+    areaDisplay: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 16,
+      backgroundColor: theme.primaryLight,
+      color: theme.primary,
+      textAlign: "center",
+      fontWeight: "600",
+    },
+    priceContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    currencySymbol: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: theme.textSecondary,
+      marginRight: 10,
+    },
+    priceInput: {
+      flex: 1,
+    },
+    submitButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primary,
+      padding: 15,
+      borderRadius: 8,
+      marginTop: 10,
+    },
+    submitButtonText: {
+      color: "white",
+      fontWeight: "bold",
+      fontSize: 16,
+      marginLeft: 10,
+    },
+    noteCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.primaryLight,
+      marginHorizontal: 15,
+      marginBottom: 30,
+      padding: 15,
+      borderRadius: 8,
+    },
+    noteText: {
+      flex: 1,
+      marginLeft: 10,
+      color: theme.primary,
+      fontSize: 14,
+    },
+  });

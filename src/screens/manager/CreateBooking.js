@@ -14,12 +14,18 @@ import { Picker } from "@react-native-picker/picker";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
 import { api } from "../../services/api";
 import CalendarPicker from "react-native-calendar-picker";
 
 export default function CreateBooking() {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { theme } = useTheme();
+
+  // Create styles FIRST - before any conditional returns
+  const styles = createStyles(theme);
+
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -121,7 +127,6 @@ export default function CreateBooking() {
   }, []);
 
   const handleDateSelect = (selectedDate) => {
-    // Handle undefined or null date
     if (!selectedDate) {
       setShowDatePicker(false);
       setShowMultiStartPicker(false);
@@ -129,7 +134,6 @@ export default function CreateBooking() {
       return;
     }
 
-    // Format the date manually
     const year = selectedDate.getFullYear();
     const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
     const day = String(selectedDate.getDate()).padStart(2, "0");
@@ -155,24 +159,20 @@ export default function CreateBooking() {
     }
   };
 
-  // Helper function to group consecutive slots
   const groupConsecutiveSlots = (slots) => {
     if (!slots || slots.length === 0) return [];
 
-    // Sort slots by start time
     const sortedSlots = [...slots].sort((a, b) => {
       const getStartTime = (slot) => parseInt(slot.split("-")[0]);
       return getStartTime(a) - getStartTime(b);
     });
 
-    // Check if two slots are consecutive
     const areConsecutive = (slot1, slot2) => {
       const getEndTime = (slot) => parseInt(slot.split("-")[1].split(":")[0]);
       const getStartTime = (slot) => parseInt(slot.split("-")[0].split(":")[0]);
       return getEndTime(slot1) === getStartTime(slot2);
     };
 
-    // Group consecutive slots
     const groups = [];
     let currentGroup = [sortedSlots[0]];
 
@@ -190,7 +190,6 @@ export default function CreateBooking() {
   };
 
   const handleCreateBooking = async () => {
-    // Validation
     if (!selectedVenue || !selectedCourt || selectedSlots.length === 0) {
       Alert.alert(
         "Error",
@@ -216,10 +215,8 @@ export default function CreateBooking() {
     try {
       const token = await AsyncStorage.getItem("token");
 
-      // Check if date is on vacation
       const checkDate = isMultiDay ? startDate : date;
 
-      // Get vacations for this venue
       const vacationsResponse = await api.get(
         `/vacations/venue/${selectedVenue}`,
         {
@@ -229,9 +226,7 @@ export default function CreateBooking() {
 
       const vacations = vacationsResponse.data || [];
 
-      // Check if selected date(s) are on vacation
       if (isMultiDay) {
-        // For multi-day, check if any date in range is on vacation
         const start = new Date(startDate);
         const end = new Date(endDate);
         const dates = [];
@@ -241,7 +236,6 @@ export default function CreateBooking() {
           dates.push(dateStr);
         }
 
-        // Check each date against vacation periods
         const hasVacation = dates.some((date) => {
           return vacations.some((vacation) => {
             const vacStart = new Date(vacation.startDate)
@@ -260,7 +254,6 @@ export default function CreateBooking() {
           return;
         }
       } else {
-        // For single day
         const isVacation = vacations.some((vacation) => {
           const vacStart = new Date(vacation.startDate)
             .toISOString()
@@ -276,11 +269,9 @@ export default function CreateBooking() {
         }
       }
 
-      // Group slots
       const slotGroups = groupConsecutiveSlots(selectedSlots);
       console.log("📊 Slot groups:", slotGroups);
 
-      // Create one booking per group
       const bookingPromises = slotGroups.map((slotGroup) => {
         const bookingData = {
           courtId: selectedCourt,
@@ -324,42 +315,6 @@ export default function CreateBooking() {
     }
   };
 
-  // Fallback function to create multiple bookings
-  const createMultipleBookings = async () => {
-    try {
-      const token = await AsyncStorage.getItem("token");
-
-      for (const slot of selectedSlots) {
-        const bookingData = {
-          courtId: selectedCourt,
-          slot: slot,
-          ...(!isMultiDay && { date: date }),
-        };
-
-        if (isMultiDay) {
-          bookingData.startDate = startDate;
-          bookingData.endDate = endDate;
-        }
-
-        await api.post("/bookings", bookingData, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
-
-      Alert.alert("Success", `${selectedSlots.length} booking(s) created!`, [
-        {
-          text: "OK",
-          onPress: () => {
-            navigation.goBack();
-          },
-        },
-      ]);
-    } catch (error) {
-      console.error("Error creating multiple bookings:", error);
-      throw error;
-    }
-  };
-
   const renderTimeSlot = ({ item }) => (
     <TouchableOpacity
       style={[
@@ -384,7 +339,7 @@ export default function CreateBooking() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={theme.primary} />
         <Text style={styles.loadingText}>Loading venues...</Text>
       </View>
     );
@@ -406,12 +361,14 @@ export default function CreateBooking() {
               selectedValue={selectedVenue}
               onValueChange={(itemValue) => setSelectedVenue(itemValue)}
               style={styles.picker}
+              dropdownIconColor={theme.textSecondary}
             >
               {venues.map((venue) => (
                 <Picker.Item
                   key={venue._id}
                   label={venue.name}
                   value={venue._id}
+                  color={theme.text}
                 />
               ))}
             </Picker>
@@ -426,12 +383,14 @@ export default function CreateBooking() {
               selectedValue={selectedCourt}
               onValueChange={(itemValue) => setSelectedCourt(itemValue)}
               style={styles.picker}
+              dropdownIconColor={theme.textSecondary}
             >
               {courts.map((court) => (
                 <Picker.Item
                   key={court._id}
                   label={`${court.name} (${court.sportType}) - Rs ${court.pricePerSlot}`}
                   value={court._id}
+                  color={theme.text}
                 />
               ))}
             </Picker>
@@ -539,10 +498,10 @@ export default function CreateBooking() {
             <CalendarPicker
               onDateChange={handleDateSelect}
               minDate={new Date()}
-              selectedDayColor="#2196F3"
+              selectedDayColor={theme.primary}
               selectedDayTextColor="#FFFFFF"
-              todayBackgroundColor="#E3F2FD"
-              todayTextColor="#2196F3"
+              todayBackgroundColor={theme.primaryLight}
+              todayTextColor={theme.primary}
             />
             <TouchableOpacity
               style={styles.calendarCloseButton}
@@ -561,184 +520,191 @@ export default function CreateBooking() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 10,
-    color: "#666",
-  },
-  header: {
-    backgroundColor: "white",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 5,
-  },
-  formContainer: {
-    padding: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
-    color: "#444",
-  },
-  pickerContainer: {
-    backgroundColor: "white",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    overflow: "hidden",
-  },
-  picker: {
-    height: 50,
-  },
-  dateInput: {
-    backgroundColor: "white",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 15,
-    justifyContent: "center",
-  },
-  dateText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  hint: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 4,
-  },
-  toggleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-    padding: 12,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 8,
-  },
-  toggle: {
-    width: 50,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#ccc",
-    padding: 3,
-    marginRight: 12,
-  },
-  toggleActive: {
-    backgroundColor: "#2196F3",
-  },
-  toggleCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "white",
-    transform: [{ translateX: 0 }],
-  },
-  toggleCircleActive: {
-    transform: [{ translateX: 24 }],
-  },
-  toggleLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  slotsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  selectedCount: {
-    fontSize: 14,
-    color: "#2196F3",
-    fontWeight: "600",
-  },
-  slotsContainer: {
-    paddingBottom: 5,
-  },
-  timeSlot: {
-    flex: 1,
-    margin: 4,
-    padding: 12,
-    backgroundColor: "white",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    alignItems: "center",
-    minWidth: "48%",
-  },
-  selectedTimeSlot: {
-    backgroundColor: "#2196F3",
-    borderColor: "#2196F3",
-  },
-  timeSlotText: {
-    fontSize: 14,
-    color: "#333",
-    textAlign: "center",
-  },
-  selectedTimeSlotText: {
-    color: "white",
-    fontWeight: "600",
-  },
-  createButton: {
-    backgroundColor: "#2196F3",
-    padding: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 20,
-  },
-  createButtonDisabled: {
-    backgroundColor: "#90CAF9",
-  },
-  createButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  calendarContainer: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 20,
-    width: "90%",
-    maxWidth: 400,
-  },
-  calendarCloseButton: {
-    marginTop: 15,
-    padding: 12,
-    backgroundColor: "#2196F3",
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  calendarCloseText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background,
+    },
+    loadingText: {
+      marginTop: 10,
+      color: theme.textSecondary,
+    },
+    header: {
+      backgroundColor: theme.card,
+      padding: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginTop: 5,
+    },
+    formContainer: {
+      padding: 20,
+    },
+    inputGroup: {
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 16,
+      fontWeight: "600",
+      marginBottom: 8,
+      color: theme.text,
+    },
+    pickerContainer: {
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+      overflow: "hidden",
+    },
+    picker: {
+      height: 50,
+      color: theme.text,
+    },
+    dateInput: {
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+      padding: 15,
+      justifyContent: "center",
+    },
+    dateText: {
+      fontSize: 16,
+      color: theme.text,
+    },
+    hint: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 4,
+    },
+    toggleContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 20,
+      padding: 12,
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    toggle: {
+      width: 50,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: theme.border,
+      padding: 3,
+      marginRight: 12,
+    },
+    toggleActive: {
+      backgroundColor: theme.primary,
+    },
+    toggleCircle: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: theme.card,
+      transform: [{ translateX: 0 }],
+    },
+    toggleCircleActive: {
+      transform: [{ translateX: 24 }],
+    },
+    toggleLabel: {
+      fontSize: 16,
+      fontWeight: "500",
+      color: theme.text,
+    },
+    slotsHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 8,
+    },
+    selectedCount: {
+      fontSize: 14,
+      color: theme.primary,
+      fontWeight: "600",
+    },
+    slotsContainer: {
+      paddingBottom: 5,
+    },
+    timeSlot: {
+      flex: 1,
+      margin: 4,
+      padding: 12,
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: "center",
+      minWidth: "48%",
+    },
+    selectedTimeSlot: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+    },
+    timeSlotText: {
+      fontSize: 14,
+      color: theme.text,
+      textAlign: "center",
+    },
+    selectedTimeSlotText: {
+      color: "white",
+      fontWeight: "600",
+    },
+    createButton: {
+      backgroundColor: theme.primary,
+      padding: 16,
+      borderRadius: 8,
+      alignItems: "center",
+      marginTop: 20,
+    },
+    createButtonDisabled: {
+      backgroundColor: theme.primary + "80",
+    },
+    createButtonText: {
+      color: "white",
+      fontSize: 16,
+      fontWeight: "bold",
+    },
+    modalContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "rgba(0,0,0,0.5)",
+    },
+    calendarContainer: {
+      backgroundColor: theme.card,
+      borderRadius: 10,
+      padding: 20,
+      width: "90%",
+      maxWidth: 400,
+    },
+    calendarCloseButton: {
+      marginTop: 15,
+      padding: 12,
+      backgroundColor: theme.primary,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    calendarCloseText: {
+      color: "white",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });

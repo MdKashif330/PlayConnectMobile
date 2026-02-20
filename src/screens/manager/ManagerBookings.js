@@ -14,6 +14,7 @@ import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import { useFocusEffect } from "@react-navigation/native";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "../../components/Icon";
+import { useTheme } from "../../contexts/ThemeContext"; // Add this import
 import {
   getManagerFutureBookingsByStatus,
   getManagerBookingHistory,
@@ -34,6 +35,9 @@ const isMultiDayBooking = (booking) => {
 
 // ========== Unapproved Tab ==========
 const UnapprovedBookings = () => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -85,16 +89,16 @@ const UnapprovedBookings = () => {
   const renderBookingItem = ({ item }) => (
     <View style={styles.bookingCard}>
       <Text style={styles.bookingId}>Booking #{item._id.substring(0, 6)}</Text>
-      <Text>Court: {item.court?.name}</Text>
-      <Text>
+      <Text style={styles.bookingText}>Court: {item.court?.name}</Text>
+      <Text style={styles.bookingText}>
         Date: {item.date} |{" "}
         {item.displaySlot || `${item.startTime}-${item.endTime}`}
         {item.slotCount ? ` (${item.slotCount} slots)` : ""}
       </Text>
-      <Text>
+      <Text style={styles.bookingText}>
         User: {item.user?.name} ({item.user?.email})
       </Text>
-      <Text>Amount: Rs {item.totalPrice}</Text>
+      <Text style={styles.priceText}>Amount: Rs {item.totalPrice}</Text>
       {isMultiDayBooking(item) && (
         <View style={styles.multiDayBadge}>
           <Text style={styles.multiDayText}>⏳ Multi‑day reservation</Text>
@@ -120,7 +124,7 @@ const UnapprovedBookings = () => {
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -129,7 +133,12 @@ const UnapprovedBookings = () => {
     <ScrollView
       style={styles.tabContent}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={theme.primary}
+          colors={[theme.primary]}
+        />
       }
       contentContainerStyle={
         bookings.length === 0 ? styles.emptyContainer : null
@@ -158,6 +167,9 @@ const UnapprovedBookings = () => {
 
 // ========== Approved Tab ==========
 const ApprovedBookings = () => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -187,13 +199,13 @@ const ApprovedBookings = () => {
   const renderBookingItem = ({ item }) => (
     <View style={styles.bookingCard}>
       <Text style={styles.bookingId}>Booking #{item._id.substring(0, 6)}</Text>
-      <Text>Court: {item.court?.name}</Text>
-      <Text>
+      <Text style={styles.bookingText}>Court: {item.court?.name}</Text>
+      <Text style={styles.bookingText}>
         Date: {item.date} |{" "}
         {item.displaySlot || `${item.startTime}-${item.endTime}`}
         {item.slotCount ? ` (${item.slotCount} slots)` : ""}
       </Text>
-      <Text>User: {item.user?.name}</Text>
+      <Text style={styles.bookingText}>User: {item.user?.name}</Text>
       <Text style={styles.statusApproved}>Status: CONFIRMED</Text>
       {isMultiDayBooking(item) && (
         <View style={styles.multiDayBadge}>
@@ -206,7 +218,7 @@ const ApprovedBookings = () => {
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -215,7 +227,12 @@ const ApprovedBookings = () => {
     <ScrollView
       style={styles.tabContent}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={theme.primary}
+          colors={[theme.primary]}
+        />
       }
       contentContainerStyle={
         bookings.length === 0 ? styles.emptyContainer : null
@@ -242,6 +259,9 @@ const ApprovedBookings = () => {
 
 // ========== Reservations Tab ==========
 const Reservations = () => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -273,24 +293,24 @@ const Reservations = () => {
   const renderBookingItem = ({ item }) => {
     const statusColor =
       item.status === "CONFIRMED"
-        ? "#4CAF50"
+        ? theme.success
         : item.status === "PENDING"
-          ? "#FF9800"
-          : "#f44336";
+          ? theme.warning
+          : theme.danger;
 
     return (
       <View style={styles.bookingCard}>
         <Text style={styles.bookingId}>
           Reservation #{item._id.substring(0, 6)}
         </Text>
-        <Text>Court: {item.court?.name}</Text>
-        <Text>
+        <Text style={styles.bookingText}>Court: {item.court?.name}</Text>
+        <Text style={styles.bookingText}>
           Date: {item.date} |{" "}
           {item.displaySlot || `${item.startTime}-${item.endTime}`}
           {item.slotCount ? ` (${item.slotCount} slots)` : ""}
         </Text>
-        <Text>User: {item.user?.name}</Text>
-        <Text>Days: ≥3</Text>
+        <Text style={styles.bookingText}>User: {item.user?.name}</Text>
+        <Text style={styles.bookingText}>Days: ≥3</Text>
         <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
           <Text style={styles.statusText}>{item.status}</Text>
         </View>
@@ -301,7 +321,7 @@ const Reservations = () => {
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -310,7 +330,12 @@ const Reservations = () => {
     <ScrollView
       style={styles.tabContent}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={theme.primary}
+          colors={[theme.primary]}
+        />
       }
       contentContainerStyle={
         bookings.length === 0 ? styles.emptyContainer : null
@@ -337,6 +362,9 @@ const Reservations = () => {
 
 // ========== History Tab ==========
 const BookingHistory = () => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -368,23 +396,23 @@ const BookingHistory = () => {
   const renderBookingItem = ({ item }) => {
     const statusColor =
       item.status === "CONFIRMED"
-        ? "#4CAF50"
+        ? theme.success
         : item.status === "PENDING"
-          ? "#FF9800"
+          ? theme.warning
           : item.status === "CANCELLED" || item.status === "REJECTED"
-            ? "#f44336"
-            : "#9E9E9E";
+            ? theme.danger
+            : theme.textSecondary;
 
     return (
       <View style={styles.bookingCard}>
         <Text style={styles.bookingId}>#{item._id.substring(0, 6)}</Text>
-        <Text>Court: {item.court?.name}</Text>
-        <Text>
+        <Text style={styles.bookingText}>Court: {item.court?.name}</Text>
+        <Text style={styles.bookingText}>
           Date: {item.date} |{" "}
           {item.displaySlot || `${item.startTime}-${item.endTime}`}
           {item.slotCount ? ` (${item.slotCount} slots)` : ""}
         </Text>
-        <Text>User: {item.user?.name}</Text>
+        <Text style={styles.bookingText}>User: {item.user?.name}</Text>
         <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
           <Text style={styles.statusText}>{item.status}</Text>
         </View>
@@ -395,7 +423,7 @@ const BookingHistory = () => {
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -404,7 +432,12 @@ const BookingHistory = () => {
     <ScrollView
       style={styles.tabContent}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={theme.primary}
+          colors={[theme.primary]}
+        />
       }
       contentContainerStyle={
         bookings.length === 0 ? styles.emptyContainer : null
@@ -432,6 +465,9 @@ const BookingHistory = () => {
 // ========== Main Component ==========
 export default function ManagerBookings() {
   const navigation = useNavigation();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: "unapproved", title: "Unapproved" },
@@ -443,11 +479,11 @@ export default function ManagerBookings() {
   const renderTabBar = (props) => (
     <TabBar
       {...props}
-      indicatorStyle={styles.indicator}
+      indicatorStyle={[styles.indicator, { backgroundColor: theme.primary }]}
       style={styles.tabBar}
       labelStyle={styles.label}
-      activeColor="#2196F3"
-      inactiveColor="#666"
+      activeColor={theme.primary}
+      inactiveColor={theme.textSecondary}
       scrollEnabled
     />
   );
@@ -470,7 +506,7 @@ export default function ManagerBookings() {
         renderTabBar={renderTabBar}
       />
       <TouchableOpacity
-        style={styles.plusButton}
+        style={[styles.plusButton, { backgroundColor: theme.primary }]}
         onPress={() => navigation.navigate("CreateBooking")}
       >
         <Icon icon="add" size={28} color="white" />
@@ -479,151 +515,161 @@ export default function ManagerBookings() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  screenTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    padding: 15,
-    backgroundColor: "white",
-    color: "#333",
-  },
-  tabBar: {
-    backgroundColor: "white",
-    elevation: 2,
-  },
-  indicator: {
-    backgroundColor: "#2196F3",
-    height: 3,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "none",
-  },
-  tabContent: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  tabTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    paddingHorizontal: 15,
-    paddingTop: 15,
-    paddingBottom: 10,
-    color: "#555",
-    backgroundColor: "#f5f5f5",
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  bookingCard: {
-    backgroundColor: "white",
-    padding: 15,
-    marginHorizontal: 15,
-    marginBottom: 10,
-    borderRadius: 10,
-    elevation: 2,
-  },
-  bookingId: {
-    fontWeight: "bold",
-    fontSize: 16,
-    color: "#333",
-    marginBottom: 5,
-  },
-  statusApproved: {
-    color: "#4CAF50",
-    fontWeight: "bold",
-    marginTop: 5,
-  },
-  multiDayBadge: {
-    backgroundColor: "#FFF3E0",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: "flex-start",
-    marginTop: 8,
-  },
-  multiDayText: {
-    color: "#FF9800",
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  statusBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  statusText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  actionButtons: {
-    flexDirection: "row",
-    marginTop: 10,
-    justifyContent: "space-between",
-  },
-  button: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    alignItems: "center",
-    flex: 1,
-    marginHorizontal: 5,
-  },
-  approveButton: {
-    backgroundColor: "#4CAF50",
-  },
-  rejectButton: {
-    backgroundColor: "#f44336",
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    minHeight: 300,
-  },
-  emptyState: {
-    alignItems: "center",
-    padding: 20,
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#888",
-    paddingVertical: 10,
-    fontSize: 16,
-  },
-  refreshHint: {
-    fontSize: 14,
-    color: "#2196F3",
-    marginTop: 5,
-  },
-  plusButton: {
-    position: "absolute",
-    bottom: 80,
-    right: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#2196F3",
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    screenTitle: {
+      fontSize: 22,
+      fontWeight: "bold",
+      padding: 15,
+      backgroundColor: theme.card,
+      color: theme.text,
+    },
+    tabBar: {
+      backgroundColor: theme.card,
+      elevation: 2,
+    },
+    indicator: {
+      height: 3,
+    },
+    label: {
+      fontSize: 12,
+      fontWeight: "600",
+      textTransform: "none",
+    },
+    tabContent: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    tabTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      paddingHorizontal: 15,
+      paddingTop: 15,
+      paddingBottom: 10,
+      color: theme.textSecondary,
+      backgroundColor: theme.background,
+    },
+    center: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    bookingCard: {
+      backgroundColor: theme.card,
+      padding: 15,
+      marginHorizontal: 15,
+      marginBottom: 10,
+      borderRadius: 10,
+      elevation: 2,
+    },
+    bookingId: {
+      fontWeight: "bold",
+      fontSize: 16,
+      color: theme.text,
+      marginBottom: 5,
+    },
+    bookingText: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      marginBottom: 2,
+    },
+    priceText: {
+      color: theme.primary,
+      fontWeight: "600",
+      marginTop: 5,
+    },
+    statusApproved: {
+      color: theme.success,
+      fontWeight: "bold",
+      marginTop: 5,
+    },
+    multiDayBadge: {
+      backgroundColor: theme.warning + "20", // 12% opacity
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+      alignSelf: "flex-start",
+      marginTop: 8,
+    },
+    multiDayText: {
+      color: theme.warning,
+      fontSize: 12,
+      fontWeight: "500",
+    },
+    statusBadge: {
+      alignSelf: "flex-start",
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginTop: 8,
+    },
+    statusText: {
+      color: "white",
+      fontSize: 12,
+      fontWeight: "500",
+    },
+    actionButtons: {
+      flexDirection: "row",
+      marginTop: 10,
+      justifyContent: "space-between",
+    },
+    button: {
+      paddingVertical: 8,
+      paddingHorizontal: 20,
+      borderRadius: 6,
+      alignItems: "center",
+      flex: 1,
+      marginHorizontal: 5,
+    },
+    approveButton: {
+      backgroundColor: theme.success,
+    },
+    rejectButton: {
+      backgroundColor: theme.danger,
+    },
+    buttonText: {
+      color: "white",
+      fontWeight: "bold",
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      minHeight: 300,
+    },
+    emptyState: {
+      alignItems: "center",
+      padding: 20,
+    },
+    emptyText: {
+      textAlign: "center",
+      color: theme.textSecondary,
+      paddingVertical: 10,
+      fontSize: 16,
+    },
+    refreshHint: {
+      fontSize: 14,
+      color: theme.primary,
+      marginTop: 5,
+    },
+    plusButton: {
+      position: "absolute",
+      bottom: 80,
+      right: 20,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      justifyContent: "center",
+      alignItems: "center",
+      elevation: 8,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.3,
+      shadowRadius: 5,
+    },
+  });

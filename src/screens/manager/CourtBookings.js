@@ -16,10 +16,12 @@ import {
   approveBooking,
   rejectBooking,
 } from "../../services/bookingManagerService";
+import { useTheme } from "../../contexts/ThemeContext"; // Add this import
 
 export default function CourtBookings() {
   const route = useRoute();
   const navigation = useNavigation();
+  const { theme } = useTheme(); // Add this line
   const { courtId, courtName } = route.params;
 
   const [bookings, setBookings] = useState([]);
@@ -56,6 +58,9 @@ export default function CourtBookings() {
     });
   };
 
+  // Create styles with theme
+  const styles = createStyles(theme);
+
   const renderBookingItem = ({ item }) => (
     <View style={styles.bookingCard}>
       <View style={styles.bookingHeader}>
@@ -71,7 +76,7 @@ export default function CourtBookings() {
       </View>
 
       <View style={styles.userInfo}>
-        <Icon name="person" size={16} color="#666" />
+        <Icon name="person" size={16} color={theme.textSecondary} />
         <Text style={styles.userText}> {item.user?.name}</Text>
         <Text style={styles.emailText}> ({item.user?.email})</Text>
       </View>
@@ -83,7 +88,7 @@ export default function CourtBookings() {
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -92,7 +97,7 @@ export default function CourtBookings() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#333" />
+          <Icon name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{courtName} - Approved Bookings</Text>
         <View style={{ width: 24 }} />
@@ -103,12 +108,17 @@ export default function CourtBookings() {
         renderItem={renderBookingItem}
         keyExtractor={(item) => item._id}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
         }
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Icon name="event-busy" size={60} color="#ccc" />
+            <Icon name="event-busy" size={60} color={theme.textSecondary} />
             <Text style={styles.emptyText}>No approved bookings yet</Text>
             <Text style={styles.emptySubText}>
               Approved bookings for this court will appear here
@@ -120,103 +130,105 @@ export default function CourtBookings() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    textAlign: "center",
-    flex: 1,
-    marginHorizontal: 10,
-  },
-  list: {
-    padding: 15,
-  },
-  bookingCard: {
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    elevation: 2,
-  },
-  bookingHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 10,
-  },
-  bookingDate: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  timeText: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 2,
-  },
-  statusBadge: {
-    backgroundColor: "#E8F5E9",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#4CAF50",
-  },
-  userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  userText: {
-    fontSize: 14,
-    color: "#555",
-  },
-  emailText: {
-    fontSize: 13,
-    color: "#888",
-  },
-  priceText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#2196F3",
-    marginTop: 5,
-  },
-  emptyContainer: {
-    alignItems: "center",
-    paddingVertical: 50,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#888",
-    marginTop: 10,
-  },
-  emptySubText: {
-    fontSize: 14,
-    color: "#aaa",
-    marginTop: 5,
-    textAlign: "center",
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    center: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      backgroundColor: theme.card,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    headerTitle: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: theme.text,
+      textAlign: "center",
+      flex: 1,
+      marginHorizontal: 10,
+    },
+    list: {
+      padding: 15,
+    },
+    bookingCard: {
+      backgroundColor: theme.card,
+      padding: 15,
+      borderRadius: 10,
+      marginBottom: 10,
+      elevation: 2,
+    },
+    bookingHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 10,
+    },
+    bookingDate: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    timeText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    statusBadge: {
+      backgroundColor: theme.success + "20", // Add transparency (20 = 12% opacity)
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    statusText: {
+      fontSize: 12,
+      fontWeight: "bold",
+      color: theme.success,
+    },
+    userInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 8,
+    },
+    userText: {
+      fontSize: 14,
+      color: theme.text,
+    },
+    emailText: {
+      fontSize: 13,
+      color: theme.textSecondary,
+    },
+    priceText: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: theme.primary,
+      marginTop: 5,
+    },
+    emptyContainer: {
+      alignItems: "center",
+      paddingVertical: 50,
+    },
+    emptyText: {
+      fontSize: 16,
+      color: theme.textSecondary,
+      marginTop: 10,
+    },
+    emptySubText: {
+      fontSize: 14,
+      color: theme.textSecondary + "80",
+      marginTop: 5,
+      textAlign: "center",
+    },
+  });

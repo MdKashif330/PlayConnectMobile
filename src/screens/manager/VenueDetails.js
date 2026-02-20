@@ -10,6 +10,7 @@ import {
   RefreshControl,
 } from "react-native";
 import Icon from "../../components/Icon";
+import { useTheme } from "../../contexts/ThemeContext"; // Add this import
 import {
   useRoute,
   useNavigation,
@@ -21,7 +22,11 @@ import { deleteCourt } from "../../services/bookingManagerService";
 export default function VenueDetails() {
   const route = useRoute();
   const navigation = useNavigation();
+  const { theme } = useTheme(); // Add this line
   const { venueId } = route.params;
+
+  // Create styles FIRST
+  const styles = createStyles(theme);
 
   const [venue, setVenue] = useState(null);
   const [courts, setCourts] = useState([]);
@@ -114,7 +119,7 @@ export default function VenueDetails() {
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -122,7 +127,7 @@ export default function VenueDetails() {
   if (!venue) {
     return (
       <View style={styles.center}>
-        <Text>Venue not found</Text>
+        <Text style={styles.errorText}>Venue not found</Text>
       </View>
     );
   }
@@ -131,17 +136,22 @@ export default function VenueDetails() {
     <ScrollView
       style={styles.container}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={theme.primary}
+          colors={[theme.primary]}
+        />
       }
     >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#333" />
+          <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Venue Details</Text>
         <TouchableOpacity onPress={handleEditVenue}>
-          <Icon name="create-outline" size={22} color="#2196F3" />
+          <Icon icon="edit" size={22} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
@@ -149,7 +159,7 @@ export default function VenueDetails() {
       <View style={styles.infoCard}>
         <Text style={styles.venueName}>{venue.name}</Text>
         <View style={styles.infoRow}>
-          <Icon name="location-outline" size={18} color="#666" />
+          <Icon icon="location" size={18} color={theme.textSecondary} />
           <Text style={styles.address}>
             {venue.location?.address || "No address provided"}
           </Text>
@@ -173,31 +183,31 @@ export default function VenueDetails() {
           <View style={styles.facilitiesGrid}>
             {venue.facilities.lights && (
               <View style={styles.facilityItem}>
-                <Icon name="bulb-outline" size={22} color="#FFC107" />
+                <Icon icon="lights" size={22} color="#FFC107" />
                 <Text style={styles.facilityText}>Lights</Text>
               </View>
             )}
             {venue.facilities.parking && (
               <View style={styles.facilityItem}>
-                <Icon name="car-outline" size={22} color="#4CAF50" />
+                <Icon icon="parking" size={22} color="#4CAF50" />
                 <Text style={styles.facilityText}>Parking</Text>
               </View>
             )}
             {venue.facilities.cafeteria && (
               <View style={styles.facilityItem}>
-                <Icon name="restaurant-outline" size={22} color="#FF5722" />
+                <Icon icon="cafeteria" size={22} color="#FF5722" />
                 <Text style={styles.facilityText}>Cafeteria</Text>
               </View>
             )}
             {venue.facilities.coaching && (
               <View style={styles.facilityItem}>
-                <Icon name="school-outline" size={22} color="#2196F3" />
+                <Icon icon="coaching" size={22} color={theme.primary} />
                 <Text style={styles.facilityText}>Coaching</Text>
               </View>
             )}
             {venue.facilities.sportsGoods && (
               <View style={styles.facilityItem}>
-                <Icon name="tennisball-outline" size={22} color="#9C27B0" />
+                <Icon icon="sportsGoods" size={22} color="#9C27B0" />
                 <Text style={styles.facilityText}>Sports Goods</Text>
               </View>
             )}
@@ -213,14 +223,14 @@ export default function VenueDetails() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Courts ({courts.length})</Text>
           <TouchableOpacity style={styles.addButton} onPress={handleAddCourt}>
-            <Icon name="add" size={20} color="white" />
+            <Icon icon="add" size={20} color="white" />
             <Text style={styles.addButtonText}>Add Court</Text>
           </TouchableOpacity>
         </View>
 
         {courts.length === 0 ? (
           <View style={styles.emptyCourts}>
-            <Icon name="sports-basketball" size={50} color="#ddd" />
+            <Icon icon="sports" size={50} color={theme.textSecondary} />
             <Text style={styles.emptyText}>No courts yet</Text>
             <Text style={styles.emptySubText}>
               Add courts to start accepting bookings
@@ -245,8 +255,7 @@ export default function VenueDetails() {
                               : "sports"
                   }
                   size={24}
-                  color="#2196F3"
-                  outline={false}
+                  color={theme.primary}
                 />
                 <Text style={styles.courtName}>{court.name}</Text>
                 <View
@@ -266,18 +275,18 @@ export default function VenueDetails() {
                   onPress={() =>
                     navigation.navigate("AddCourt", {
                       venueId: venue._id,
-                      court: court, // Pass court data for editing
-                      onCourtAdded: fetchVenueDetails, // Refresh after update
+                      court: court,
+                      onCourtAdded: fetchVenueDetails,
                     })
                   }
                 >
-                  <Icon name="create-outline" size={20} color="#2196F3" />
+                  <Icon icon="edit" size={20} color={theme.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => handleDeleteCourt(court._id, court.name)}
                 >
-                  <Icon name="delete" size={20} color="#f44336" />
+                  <Icon icon="delete" size={20} color={theme.danger} />
                 </TouchableOpacity>
               </View>
               <View style={styles.courtDetails}>
@@ -325,235 +334,246 @@ export default function VenueDetails() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  infoCard: {
-    backgroundColor: "white",
-    margin: 15,
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
-  },
-  venueName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 5,
-  },
-  address: {
-    fontSize: 15,
-    color: "#666",
-    marginLeft: 8,
-    flex: 1,
-  },
-  coordinates: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  coordText: {
-    fontSize: 13,
-    color: "#888",
-  },
-  section: {
-    backgroundColor: "white",
-    marginHorizontal: 15,
-    marginBottom: 15,
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 15,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  facilitiesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  facilityItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginRight: 10,
-    marginBottom: 10,
-  },
-  facilityText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#555",
-  },
-  noFacilities: {
-    color: "#888",
-    fontStyle: "italic",
-  },
-  addButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#2196F3",
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    marginLeft: 5,
-  },
-  emptyCourts: {
-    alignItems: "center",
-    paddingVertical: 30,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#888",
-    marginTop: 10,
-  },
-  emptySubText: {
-    fontSize: 14,
-    color: "#aaa",
-    marginTop: 5,
-    textAlign: "center",
-  },
-  courtCard: {
-    backgroundColor: "#f9f9f9",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  courtHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  courtName: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 10,
-    flex: 1,
-    color: "#333",
-  },
-  activeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginLeft: 5,
-  },
-  activeBadgeActive: {
-    backgroundColor: "#E8F5E9",
-  },
-  activeBadgeInactive: {
-    backgroundColor: "#FFEBEE",
-  },
-  editCourtButton: {
-    marginLeft: 10,
-    padding: 5,
-  },
-  activeText: {
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  deleteButton: {
-    marginLeft: 10,
-    padding: 5,
-  },
-  courtDetails: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  sportType: {
-    color: "#666",
-    fontWeight: "600",
-  },
-  price: {
-    color: "#2196F3",
-    fontWeight: "bold",
-  },
-  courtActions: {
-    flexDirection: "row",
-  },
-  viewBookingsButton: {
-    backgroundColor: "#E3F2FD",
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 6,
-    alignItems: "center",
-    flex: 1,
-  },
-  viewBookingsText: {
-    color: "#2196F3",
-    fontWeight: "600",
-  },
-  statsCard: {
-    backgroundColor: "white",
-    margin: 15,
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
-    marginBottom: 30,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 15,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  statItem: {
-    alignItems: "center",
-    flex: 1,
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#2196F3",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 5,
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    center: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    errorText: {
+      color: theme.text,
+      fontSize: 16,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      backgroundColor: theme.card,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    infoCard: {
+      backgroundColor: theme.card,
+      margin: 15,
+      padding: 20,
+      borderRadius: 12,
+      elevation: 2,
+    },
+    venueName: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 10,
+    },
+    infoRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 5,
+    },
+    address: {
+      fontSize: 15,
+      color: theme.textSecondary,
+      marginLeft: 8,
+      flex: 1,
+    },
+    coordinates: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 10,
+    },
+    coordText: {
+      fontSize: 13,
+      color: theme.textSecondary + "80", // 50% opacity
+    },
+    section: {
+      backgroundColor: theme.card,
+      marginHorizontal: 15,
+      marginBottom: 15,
+      padding: 20,
+      borderRadius: 12,
+      elevation: 2,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 15,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 15,
+    },
+    facilitiesGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+    facilityItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.background,
+      paddingHorizontal: 15,
+      paddingVertical: 10,
+      borderRadius: 10,
+      marginRight: 10,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    facilityText: {
+      marginLeft: 8,
+      fontSize: 14,
+      color: theme.text,
+    },
+    noFacilities: {
+      color: theme.textSecondary,
+      fontStyle: "italic",
+    },
+    addButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.primary,
+      paddingHorizontal: 15,
+      paddingVertical: 8,
+      borderRadius: 8,
+    },
+    addButtonText: {
+      color: "white",
+      fontWeight: "bold",
+      marginLeft: 5,
+    },
+    emptyCourts: {
+      alignItems: "center",
+      paddingVertical: 30,
+    },
+    emptyText: {
+      fontSize: 16,
+      color: theme.textSecondary,
+      marginTop: 10,
+    },
+    emptySubText: {
+      fontSize: 14,
+      color: theme.textSecondary + "80", // 50% opacity
+      marginTop: 5,
+      textAlign: "center",
+    },
+    courtCard: {
+      backgroundColor: theme.background,
+      padding: 15,
+      borderRadius: 10,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    courtHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 10,
+    },
+    courtName: {
+      fontSize: 16,
+      fontWeight: "600",
+      marginLeft: 10,
+      flex: 1,
+      color: theme.text,
+    },
+    activeBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginLeft: 5,
+    },
+    activeBadgeActive: {
+      backgroundColor: theme.success + "20", // 12% opacity
+    },
+    activeBadgeInactive: {
+      backgroundColor: theme.danger + "20", // 12% opacity
+    },
+    activeText: {
+      fontSize: 12,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    editCourtButton: {
+      marginLeft: 10,
+      padding: 5,
+    },
+    deleteButton: {
+      marginLeft: 10,
+      padding: 5,
+    },
+    courtDetails: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 10,
+    },
+    sportType: {
+      color: theme.textSecondary,
+      fontWeight: "600",
+    },
+    price: {
+      color: theme.primary,
+      fontWeight: "bold",
+    },
+    courtActions: {
+      flexDirection: "row",
+    },
+    viewBookingsButton: {
+      backgroundColor: theme.primaryLight,
+      paddingVertical: 8,
+      paddingHorizontal: 15,
+      borderRadius: 6,
+      alignItems: "center",
+      flex: 1,
+    },
+    viewBookingsText: {
+      color: theme.primary,
+      fontWeight: "600",
+    },
+    statsCard: {
+      backgroundColor: theme.card,
+      margin: 15,
+      padding: 20,
+      borderRadius: 12,
+      elevation: 2,
+      marginBottom: 30,
+    },
+    statsTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 15,
+    },
+    statsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    statItem: {
+      alignItems: "center",
+      flex: 1,
+    },
+    statNumber: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: theme.primary,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 5,
+    },
+  });

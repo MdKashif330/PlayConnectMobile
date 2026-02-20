@@ -11,12 +11,13 @@ import {
 import Icon from "../../components/Icon";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../../contexts/ThemeContext"; // Import useTheme
 
 export default function AppSettings() {
   const navigation = useNavigation();
+  const { isDarkMode, toggleDarkMode, theme } = useTheme(); // Get theme context
 
   const [settings, setSettings] = useState({
-    darkMode: false,
     pushNotifications: true,
     emailNotifications: true,
     smsNotifications: false,
@@ -59,25 +60,20 @@ export default function AppSettings() {
   };
 
   const clearCache = () => {
-    Alert.alert(
-      "Clear Cache",
-      "Are you sure you want to clear app cache? This will free up storage space.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          onPress: async () => {
-            try {
-              // Simulate cache clearing
-              await AsyncStorage.removeItem("appCache");
-              Alert.alert("Success", "Cache cleared successfully");
-            } catch (error) {
-              Alert.alert("Error", "Failed to clear cache");
-            }
-          },
+    Alert.alert("Clear Cache", "Are you sure you want to clear app cache?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        onPress: async () => {
+          try {
+            await AsyncStorage.removeItem("appCache");
+            Alert.alert("Success", "Cache cleared successfully");
+          } catch (error) {
+            Alert.alert("Error", "Failed to clear cache");
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const resetSettings = () => {
@@ -90,7 +86,6 @@ export default function AppSettings() {
           text: "Reset",
           onPress: async () => {
             const defaultSettings = {
-              darkMode: false,
               pushNotifications: true,
               emailNotifications: true,
               smsNotifications: false,
@@ -111,23 +106,27 @@ export default function AppSettings() {
   };
 
   const SettingSection = ({ title, children }) => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={[styles.section, { backgroundColor: theme.card }]}>
+      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+        {title}
+      </Text>
       <View style={styles.sectionContent}>{children}</View>
     </View>
   );
 
   const SettingItem = ({ icon, label, value, onToggle, type = "switch" }) => (
-    <View style={styles.settingItem}>
+    <View style={[styles.settingItem, { borderBottomColor: theme.border }]}>
       <View style={styles.settingLeft}>
-        <Icon icon={icon} size={22} color="#2196F3" />
-        <Text style={styles.settingLabel}>{label}</Text>
+        <Icon icon={icon} size={22} color={theme.primary} />
+        <Text style={[styles.settingLabel, { color: theme.text }]}>
+          {label}
+        </Text>
       </View>
       {type === "switch" ? (
         <Switch
           value={value}
           onValueChange={onToggle}
-          trackColor={{ false: "#ddd", true: "#2196F3" }}
+          trackColor={{ false: theme.border, true: theme.primary }}
           thumbColor="white"
         />
       ) : (
@@ -135,7 +134,7 @@ export default function AppSettings() {
           <Icon
             icon="back"
             size={20}
-            color="#999"
+            color={theme.textSecondary}
             style={{ transform: [{ rotate: "180deg" }] }}
           />
         </TouchableOpacity>
@@ -144,25 +143,32 @@ export default function AppSettings() {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: theme.card, borderBottomColor: theme.border },
+        ]}
+      >
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon icon="back" size={24} color="#333" />
+          <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>
+          Settings
+        </Text>
         <TouchableOpacity onPress={resetSettings}>
-          <Icon icon="refresh" size={22} color="#2196F3" />
+          <Icon icon="refresh" size={22} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
-        {/* Appearance */}
+        {/* Appearance - Dark Mode Toggle */}
         <SettingSection title="Appearance">
           <SettingItem
-            icon="bulb"
+            icon={isDarkMode ? "moon" : "sunny"}
             label="Dark Mode"
-            value={settings.darkMode}
-            onToggle={() => toggleSetting("darkMode")}
+            value={isDarkMode}
+            onToggle={() => toggleDarkMode(!isDarkMode)}
           />
         </SettingSection>
 
@@ -216,22 +222,6 @@ export default function AppSettings() {
           />
         </SettingSection>
 
-        {/* Booking Preferences */}
-        <SettingSection title="Booking Preferences">
-          <SettingItem
-            icon="calendar"
-            label="Show Booking Reminders"
-            value={settings.showBookingReminders}
-            onToggle={() => toggleSetting("showBookingReminders")}
-          />
-          <SettingItem
-            icon="megaphone"
-            label="Show Promotions"
-            value={settings.showPromotions}
-            onToggle={() => toggleSetting("showPromotions")}
-          />
-        </SettingSection>
-
         {/* Storage */}
         <SettingSection title="Storage">
           <SettingItem
@@ -266,22 +256,10 @@ export default function AppSettings() {
               Alert.alert("Privacy", "Privacy policy will be available soon")
             }
           />
-          <SettingItem
-            icon="star"
-            label="Rate the App"
-            type="link"
-            onToggle={() => Alert.alert("Rate", "Rate us on the app store")}
-          />
-          <SettingItem
-            icon="share"
-            label="Share App"
-            type="link"
-            onToggle={() => Alert.alert("Share", "Sharing feature coming soon")}
-          />
         </SettingSection>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text style={[styles.footerText, { color: theme.textSecondary }]}>
             Settings are automatically saved
           </Text>
         </View>
@@ -293,7 +271,6 @@ export default function AppSettings() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
   },
   header: {
     flexDirection: "row",
@@ -301,30 +278,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
   },
   content: {
     flex: 1,
   },
   section: {
-    backgroundColor: "white",
     marginTop: 20,
     paddingVertical: 10,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#555",
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: "#f9f9f9",
   },
   sectionContent: {
     paddingHorizontal: 20,
@@ -335,7 +306,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
   },
   settingLeft: {
     flexDirection: "row",
@@ -343,7 +313,6 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
-    color: "#333",
     marginLeft: 15,
   },
   footer: {
@@ -352,6 +321,5 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: "#999",
   },
 });

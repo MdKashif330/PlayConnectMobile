@@ -9,9 +9,15 @@ import {
 } from "react-native";
 import Icon from "../../components/Icon";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../../contexts/ThemeContext"; // Add this import
 
 export default function FAQs() {
   const navigation = useNavigation();
+  const { theme } = useTheme(); // Add this line
+
+  // Create styles FIRST
+  const styles = createStyles(theme);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState(null);
 
@@ -164,7 +170,7 @@ export default function FAQs() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon icon="back" size={24} color="#333" />
+          <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>FAQs</Text>
         <View style={{ width: 24 }} />
@@ -173,16 +179,17 @@ export default function FAQs() {
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Icon icon="search" size={20} color="#999" />
+          <Icon icon="search" size={20} color={theme.textSecondary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search FAQs..."
+            placeholderTextColor={theme.placeholder}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Icon icon="close" size={20} color="#999" />
+              <Icon icon="close" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -206,7 +213,7 @@ export default function FAQs() {
                           expandedId === item.id ? "chevron-up" : "chevron-down"
                         }
                         size={20}
-                        color="#666"
+                        color={theme.textSecondary}
                       />
                     </TouchableOpacity>
 
@@ -222,7 +229,7 @@ export default function FAQs() {
           ))
         ) : (
           <View style={styles.noResults}>
-            <Icon icon="help-circle" size={60} color="#ccc" />
+            <Icon icon="help-circle" size={60} color={theme.textSecondary} />
             <Text style={styles.noResultsText}>No FAQs found</Text>
             <Text style={styles.noResultsSubText}>
               Try searching with different keywords
@@ -248,138 +255,141 @@ export default function FAQs() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  searchContainer: {
-    padding: 15,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-    padding: 5,
-  },
-  content: {
-    flex: 1,
-    padding: 15,
-  },
-  categoryContainer: {
-    marginBottom: 20,
-  },
-  categoryTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
-    paddingLeft: 5,
-  },
-  faqList: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    overflow: "hidden",
-    elevation: 2,
-  },
-  faqItem: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  questionContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 15,
-    backgroundColor: "white",
-  },
-  question: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#333",
-    marginRight: 10,
-  },
-  answerContainer: {
-    padding: 15,
-    paddingTop: 0,
-    backgroundColor: "#f9f9f9",
-  },
-  answer: {
-    fontSize: 14,
-    color: "#666",
-    lineHeight: 20,
-  },
-  noResults: {
-    alignItems: "center",
-    paddingVertical: 60,
-  },
-  noResultsText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#666",
-    marginTop: 15,
-    marginBottom: 5,
-  },
-  noResultsSubText: {
-    fontSize: 14,
-    color: "#999",
-  },
-  helpSection: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 12,
-    alignItems: "center",
-    marginVertical: 20,
-    elevation: 2,
-  },
-  helpTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 8,
-  },
-  helpText: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 15,
-  },
-  contactButton: {
-    backgroundColor: "#2196F3",
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  contactButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      backgroundColor: theme.card,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    searchContainer: {
+      padding: 15,
+      backgroundColor: theme.card,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    searchBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.background,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    searchInput: {
+      flex: 1,
+      marginLeft: 8,
+      fontSize: 16,
+      padding: 5,
+      color: theme.text,
+    },
+    content: {
+      flex: 1,
+      padding: 15,
+    },
+    categoryContainer: {
+      marginBottom: 20,
+    },
+    categoryTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 10,
+      paddingLeft: 5,
+    },
+    faqList: {
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      overflow: "hidden",
+      elevation: 2,
+    },
+    faqItem: {
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    questionContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: 15,
+      backgroundColor: theme.card,
+    },
+    question: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: "500",
+      color: theme.text,
+      marginRight: 10,
+    },
+    answerContainer: {
+      padding: 15,
+      paddingTop: 0,
+      backgroundColor: theme.background,
+    },
+    answer: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      lineHeight: 20,
+    },
+    noResults: {
+      alignItems: "center",
+      paddingVertical: 60,
+    },
+    noResultsText: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: theme.textSecondary,
+      marginTop: 15,
+      marginBottom: 5,
+    },
+    noResultsSubText: {
+      fontSize: 14,
+      color: theme.textSecondary + "80", // 50% opacity
+    },
+    helpSection: {
+      backgroundColor: theme.card,
+      padding: 20,
+      borderRadius: 12,
+      alignItems: "center",
+      marginVertical: 20,
+      elevation: 2,
+    },
+    helpTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 8,
+    },
+    helpText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      textAlign: "center",
+      marginBottom: 15,
+    },
+    contactButton: {
+      backgroundColor: theme.primary,
+      paddingHorizontal: 25,
+      paddingVertical: 12,
+      borderRadius: 8,
+    },
+    contactButtonText: {
+      color: "white",
+      fontWeight: "bold",
+      fontSize: 16,
+    },
+  });

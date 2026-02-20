@@ -13,6 +13,7 @@ import {
 import Icon from "../../components/Icon";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext"; // Add this import
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../../services/api";
 import * as ImagePicker from "expo-image-picker";
@@ -21,7 +22,11 @@ import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 export default function EditProfile({ route }) {
   const navigation = useNavigation();
   const { user, updateUser } = useAuth();
+  const { theme } = useTheme(); // Add this line
   const { focusImage, onProfileUpdate } = route.params || {};
+
+  // Create styles FIRST
+  const styles = createStyles(theme);
 
   const [loading, setLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
@@ -165,14 +170,14 @@ export default function EditProfile({ route }) {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon icon="back" size={24} color="#333" />
+          <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Profile</Text>
         <TouchableOpacity onPress={handleSave} disabled={loading}>
           {loading ? (
-            <ActivityIndicator size="small" color="#2196F3" />
+            <ActivityIndicator size="small" color={theme.primary} />
           ) : (
-            <Icon icon="save" size={24} color="#2196F3" />
+            <Icon icon="save" size={24} color={theme.primary} />
           )}
         </TouchableOpacity>
       </View>
@@ -186,13 +191,13 @@ export default function EditProfile({ route }) {
         >
           {imageLoading ? (
             <View style={styles.imagePlaceholder}>
-              <ActivityIndicator size="large" color="#2196F3" />
+              <ActivityIndicator size="large" color={theme.primary} />
             </View>
           ) : profileImage ? (
             <Image source={{ uri: profileImage }} style={styles.profileImage} />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Icon icon="profile" size={60} color="#2196F3" />
+              <Icon icon="profile" size={60} color={theme.primary} />
             </View>
           )}
           <View style={styles.cameraIcon}>
@@ -211,6 +216,7 @@ export default function EditProfile({ route }) {
               value={form.name}
               onChangeText={(text) => setForm({ ...form, name: text })}
               placeholder="Enter your full name"
+              placeholderTextColor={theme.placeholder}
             />
           </View>
 
@@ -221,6 +227,7 @@ export default function EditProfile({ route }) {
               value={form.email}
               onChangeText={(text) => setForm({ ...form, email: text })}
               placeholder="Enter your email"
+              placeholderTextColor={theme.placeholder}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -233,6 +240,7 @@ export default function EditProfile({ route }) {
               value={form.phone}
               onChangeText={(text) => setForm({ ...form, phone: text })}
               placeholder="Enter your phone number"
+              placeholderTextColor={theme.placeholder}
               keyboardType="phone-pad"
             />
           </View>
@@ -246,98 +254,101 @@ export default function EditProfile({ route }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  content: {
-    padding: 20,
-  },
-  imageContainer: {
-    alignItems: "center",
-    marginBottom: 10,
-    position: "relative",
-  },
-  profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: "#2196F3",
-  },
-  imagePlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#E3F2FD",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#2196F3",
-  },
-  cameraIcon: {
-    position: "absolute",
-    bottom: 0,
-    right: "35%",
-    backgroundColor: "#2196F3",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "white",
-  },
-  imageHint: {
-    textAlign: "center",
-    color: "#666",
-    fontSize: 14,
-    marginBottom: 30,
-  },
-  form: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#fafafa",
-  },
-  note: {
-    marginTop: 20,
-    fontSize: 12,
-    color: "#888",
-    fontStyle: "italic",
-    textAlign: "center",
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      backgroundColor: theme.card,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    content: {
+      padding: 20,
+    },
+    imageContainer: {
+      alignItems: "center",
+      marginBottom: 10,
+      position: "relative",
+    },
+    profileImage: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      borderWidth: 3,
+      borderColor: theme.primary,
+    },
+    imagePlaceholder: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: theme.primaryLight,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 3,
+      borderColor: theme.primary,
+    },
+    cameraIcon: {
+      position: "absolute",
+      bottom: 0,
+      right: "35%",
+      backgroundColor: theme.primary,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 2,
+      borderColor: "white",
+    },
+    imageHint: {
+      textAlign: "center",
+      color: theme.textSecondary,
+      fontSize: 14,
+      marginBottom: 30,
+    },
+    form: {
+      backgroundColor: theme.card,
+      padding: 20,
+      borderRadius: 12,
+      elevation: 2,
+    },
+    inputGroup: {
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.textSecondary,
+      marginBottom: 8,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 16,
+      backgroundColor: theme.card,
+      color: theme.text,
+    },
+    note: {
+      marginTop: 20,
+      fontSize: 12,
+      color: theme.textSecondary,
+      fontStyle: "italic",
+      textAlign: "center",
+    },
+  });

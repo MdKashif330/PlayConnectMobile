@@ -14,10 +14,12 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import api from "../../services/authService";
 import { createVenue, updateVenue } from "../../services/managerService";
+import { useTheme } from "../../contexts/ThemeContext"; // Add this import
 
 export default function AddVenue() {
   const navigation = useNavigation();
   const route = useRoute();
+  const { theme } = useTheme(); // Add this line
   const { venue } = route.params || {}; // If editing, venue will be passed
 
   const [loading, setLoading] = useState(false);
@@ -128,11 +130,14 @@ export default function AddVenue() {
     }
   };
 
+  // Create styles with theme
+  const styles = createStyles(theme);
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#333" />
+          <Icon name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {isEditing ? "Edit Venue" : "Add New Venue"}
@@ -151,6 +156,7 @@ export default function AddVenue() {
           <TextInput
             style={styles.input}
             placeholder="e.g., PlayConnect Arena"
+            placeholderTextColor={theme.placeholder}
             value={form.name}
             onChangeText={(text) => handleChange("name", text)}
           />
@@ -164,6 +170,7 @@ export default function AddVenue() {
           <TextInput
             style={styles.input}
             placeholder="Full address"
+            placeholderTextColor={theme.placeholder}
             value={form.address}
             onChangeText={(text) => handleChange("address", text)}
           />
@@ -179,6 +186,7 @@ export default function AddVenue() {
             <TextInput
               style={styles.input}
               placeholder="31.4697"
+              placeholderTextColor={theme.placeholder}
               keyboardType="numeric"
               value={form.latitude}
               onChangeText={(text) => handleChange("latitude", text)}
@@ -189,6 +197,7 @@ export default function AddVenue() {
             <TextInput
               style={styles.input}
               placeholder="74.2728"
+              placeholderTextColor={theme.placeholder}
               keyboardType="numeric"
               value={form.longitude}
               onChangeText={(text) => handleChange("longitude", text)}
@@ -207,8 +216,8 @@ export default function AddVenue() {
               <Switch
                 value={form.facilities[facility]}
                 onValueChange={() => toggleFacility(facility)}
-                trackColor={{ false: "#ddd", true: "#2196F3" }}
-                thumbColor={form.facilities[facility] ? "#fff" : "#f4f3f4"}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor={form.facilities[facility] ? "#fff" : theme.card}
               />
             </View>
           ))}
@@ -238,7 +247,7 @@ export default function AddVenue() {
       </View>
 
       <View style={styles.noteCard}>
-        <Icon name="info" size={20} color="#2196F3" />
+        <Icon name="info" size={20} color={theme.primary} />
         <Text style={styles.noteText}>
           {isEditing
             ? "Update venue information as needed."
@@ -249,116 +258,118 @@ export default function AddVenue() {
   );
 }
 
-// Styles remain the same
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  formCard: {
-    backgroundColor: "white",
-    margin: 15,
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 8,
-  },
-  required: {
-    color: "#f44336",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#fafafa",
-  },
-  coordinatesRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  coordinateInput: {
-    flex: 1,
-    marginHorizontal: 5,
-  },
-  coordinateLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 5,
-  },
-  facilitiesContainer: {
-    marginBottom: 30,
-  },
-  facilityRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  facilityText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  submitButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2196F3",
-    padding: 15,
-    borderRadius: 8,
-  },
-  submitButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
-    marginLeft: 10,
-  },
-  noteCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E3F2FD",
-    marginHorizontal: 15,
-    marginBottom: 30,
-    padding: 15,
-    borderRadius: 8,
-  },
-  noteText: {
-    flex: 1,
-    marginLeft: 10,
-    color: "#1565C0",
-    fontSize: 14,
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      backgroundColor: theme.card,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    formCard: {
+      backgroundColor: theme.card,
+      margin: 15,
+      padding: 20,
+      borderRadius: 12,
+      elevation: 2,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 20,
+    },
+    inputGroup: {
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.textSecondary,
+      marginBottom: 8,
+    },
+    required: {
+      color: theme.danger,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 16,
+      backgroundColor: theme.card,
+      color: theme.text,
+    },
+    coordinatesRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 20,
+    },
+    coordinateInput: {
+      flex: 1,
+      marginHorizontal: 5,
+    },
+    coordinateLabel: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginBottom: 5,
+    },
+    facilitiesContainer: {
+      marginBottom: 30,
+    },
+    facilityRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    facilityText: {
+      fontSize: 16,
+      color: theme.text,
+    },
+    submitButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primary,
+      padding: 15,
+      borderRadius: 8,
+    },
+    submitButtonText: {
+      color: "white",
+      fontWeight: "bold",
+      fontSize: 16,
+      marginLeft: 10,
+    },
+    noteCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.primaryLight,
+      marginHorizontal: 15,
+      marginBottom: 30,
+      padding: 15,
+      borderRadius: 8,
+    },
+    noteText: {
+      flex: 1,
+      marginLeft: 10,
+      color: theme.primary,
+      fontSize: 14,
+    },
+  });

@@ -5,14 +5,16 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
+  Alert,
   Linking,
 } from "react-native";
 import Icon from "../../components/Icon";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../../contexts/ThemeContext"; // Add this import
 
 export default function AboutUs() {
   const navigation = useNavigation();
+  const { theme } = useTheme(); // Add this line
 
   const developers = [
     {
@@ -56,11 +58,14 @@ export default function AboutUs() {
     Linking.openURL(url).catch(() => Alert.alert("Error", "Cannot open link"));
   };
 
+  // Create styles with theme
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon icon="back" size={24} color="#333" />
+          <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>About Us</Text>
         <View style={{ width: 24 }} />
@@ -99,7 +104,7 @@ export default function AboutUs() {
           <Text style={styles.cardTitle}>Key Features</Text>
           {features.map((feature, index) => (
             <View key={index} style={styles.featureItem}>
-              <Icon icon="checkmark-circle" size={20} color="#4CAF50" />
+              <Icon icon="checkmark-circle" size={20} color={theme.success} />
               <Text style={styles.featureText}>{feature}</Text>
             </View>
           ))}
@@ -129,7 +134,7 @@ export default function AboutUs() {
           {developers.map((dev, index) => (
             <View key={index} style={styles.developerItem}>
               <View style={styles.developerIcon}>
-                <Icon icon={dev.icon} size={24} color="#2196F3" />
+                <Icon icon={dev.icon} size={24} color={theme.primary} />
               </View>
               <View style={styles.developerInfo}>
                 <Text style={styles.developerName}>{dev.name}</Text>
@@ -148,7 +153,7 @@ export default function AboutUs() {
             style={styles.contactItem}
             onPress={() => openLink("mailto:support@playconnect.com")}
           >
-            <Icon icon="mail" size={22} color="#2196F3" />
+            <Icon icon="mail" size={22} color={theme.primary} />
             <Text style={styles.contactText}>support@playconnect.com</Text>
           </TouchableOpacity>
 
@@ -156,7 +161,7 @@ export default function AboutUs() {
             style={styles.contactItem}
             onPress={() => openLink("https://www.playconnect.com")}
           >
-            <Icon icon="globe" size={22} color="#2196F3" />
+            <Icon icon="globe" size={22} color={theme.primary} />
             <Text style={styles.contactText}>www.playconnect.com</Text>
           </TouchableOpacity>
 
@@ -164,7 +169,7 @@ export default function AboutUs() {
             style={styles.contactItem}
             onPress={() => openLink("tel:+1234567890")}
           >
-            <Icon icon="call" size={22} color="#2196F3" />
+            <Icon icon="call" size={22} color={theme.primary} />
             <Text style={styles.contactText}>+1 (234) 567-890</Text>
           </TouchableOpacity>
 
@@ -210,180 +215,182 @@ export default function AboutUs() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  content: {
-    flex: 1,
-  },
-  logoSection: {
-    backgroundColor: "#2196F3",
-    alignItems: "center",
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  appName: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 5,
-  },
-  appVersion: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.8)",
-    marginBottom: 5,
-  },
-  appSlogan: {
-    fontSize: 18,
-    color: "white",
-    fontStyle: "italic",
-  },
-  card: {
-    backgroundColor: "white",
-    margin: 15,
-    marginBottom: 0,
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 15,
-  },
-  cardText: {
-    fontSize: 14,
-    color: "#666",
-    lineHeight: 22,
-    marginBottom: 10,
-  },
-  featureItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  featureText: {
-    fontSize: 14,
-    color: "#555",
-    marginLeft: 12,
-    flex: 1,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    backgroundColor: "white",
-    margin: 15,
-    marginBottom: 0,
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
-    justifyContent: "space-around",
-  },
-  statItem: {
-    alignItems: "center",
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#2196F3",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 5,
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: "#ddd",
-  },
-  developerItem: {
-    flexDirection: "row",
-    marginBottom: 20,
-  },
-  developerIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#E3F2FD",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 15,
-  },
-  developerInfo: {
-    flex: 1,
-  },
-  developerName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  developerRole: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 2,
-  },
-  developerEmail: {
-    fontSize: 12,
-    color: "#2196F3",
-    marginTop: 2,
-  },
-  contactItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  contactText: {
-    fontSize: 15,
-    color: "#333",
-    marginLeft: 15,
-  },
-  socialLinks: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-  },
-  socialIcon: {
-    padding: 5,
-  },
-  copyright: {
-    padding: 20,
-    alignItems: "center",
-  },
-  copyrightText: {
-    fontSize: 12,
-    color: "#999",
-    marginBottom: 2,
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      backgroundColor: theme.card,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    content: {
+      flex: 1,
+    },
+    logoSection: {
+      backgroundColor: theme.primary,
+      alignItems: "center",
+      paddingVertical: 40,
+      paddingHorizontal: 20,
+    },
+    logoContainer: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: "rgba(255,255,255,0.2)",
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 15,
+    },
+    appName: {
+      fontSize: 28,
+      fontWeight: "bold",
+      color: "white",
+      marginBottom: 5,
+    },
+    appVersion: {
+      fontSize: 16,
+      color: "rgba(255,255,255,0.8)",
+      marginBottom: 5,
+    },
+    appSlogan: {
+      fontSize: 18,
+      color: "white",
+      fontStyle: "italic",
+    },
+    card: {
+      backgroundColor: theme.card,
+      margin: 15,
+      marginBottom: 0,
+      padding: 20,
+      borderRadius: 12,
+      elevation: 2,
+    },
+    cardTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 15,
+    },
+    cardText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      lineHeight: 22,
+      marginBottom: 10,
+    },
+    featureItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    featureText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginLeft: 12,
+      flex: 1,
+    },
+    statsContainer: {
+      flexDirection: "row",
+      backgroundColor: theme.card,
+      margin: 15,
+      marginBottom: 0,
+      padding: 20,
+      borderRadius: 12,
+      elevation: 2,
+      justifyContent: "space-around",
+    },
+    statItem: {
+      alignItems: "center",
+    },
+    statNumber: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: theme.primary,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 5,
+    },
+    statDivider: {
+      width: 1,
+      height: 40,
+      backgroundColor: theme.border,
+    },
+    developerItem: {
+      flexDirection: "row",
+      marginBottom: 20,
+    },
+    developerIcon: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: theme.primaryLight,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 15,
+    },
+    developerInfo: {
+      flex: 1,
+    },
+    developerName: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+    },
+    developerRole: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    developerEmail: {
+      fontSize: 12,
+      color: theme.primary,
+      marginTop: 2,
+    },
+    contactItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    contactText: {
+      fontSize: 15,
+      color: theme.text,
+      marginLeft: 15,
+    },
+    socialLinks: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginTop: 20,
+      paddingTop: 20,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    socialIcon: {
+      padding: 5,
+    },
+    copyright: {
+      padding: 20,
+      alignItems: "center",
+    },
+    copyrightText: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginBottom: 2,
+    },
+  });

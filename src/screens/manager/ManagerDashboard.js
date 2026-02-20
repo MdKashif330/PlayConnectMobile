@@ -10,11 +10,17 @@ import {
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext"; // Add this import
 import { api } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
+  const { theme } = useTheme(); // Add this line
+
+  // Create styles FIRST
+  const styles = createStyles(theme);
+
   const [selectedDate, setSelectedDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,8 +88,8 @@ export default function ManagerDashboard() {
                 if (d >= today) {
                   vacationMarkedDates[dateStr] = {
                     marked: true,
-                    dotColor: "#FF6B6B",
-                    selectedDotColor: "#FF6B6B",
+                    dotColor: theme.danger,
+                    selectedDotColor: theme.danger,
                   };
                 }
               }
@@ -137,7 +143,7 @@ export default function ManagerDashboard() {
       marked[selectedDate] = {
         ...marked[selectedDate],
         selected: true,
-        selectedColor: "#2196F3",
+        selectedColor: theme.primary,
         selectedTextColor: "white",
       };
     }
@@ -147,7 +153,7 @@ export default function ManagerDashboard() {
     marked[today] = {
       ...marked[today],
       marked: true,
-      dotColor: "#4CAF50",
+      dotColor: theme.success,
     };
 
     setMarkedDates(marked);
@@ -167,7 +173,7 @@ export default function ManagerDashboard() {
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={theme.primary} />
         <Text style={styles.loadingText}>Loading dashboard...</Text>
       </View>
     );
@@ -178,7 +184,12 @@ export default function ManagerDashboard() {
       <ScrollView
         style={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
         }
       >
         <Text style={styles.title}>Dashboard</Text>
@@ -200,11 +211,10 @@ export default function ManagerDashboard() {
           <Text style={styles.sectionTitle}>Calendar & Vacations</Text>
           <Calendar
             current={new Date().toISOString().split("T")[0]}
-            // No minDate - all dates look normal
             onDayPress={(day) => {
               const selectedDate = new Date(day.dateString);
               const today = new Date();
-              today.setHours(0, 0, 0, 0); // Start of today
+              today.setHours(0, 0, 0, 0);
 
               // Prevent selection of past dates
               if (selectedDate < today) {
@@ -213,7 +223,7 @@ export default function ManagerDashboard() {
                   "Please select today or a future date.",
                   [{ text: "OK" }],
                 );
-                return; // Don't proceed
+                return;
               }
 
               // If date is today or future, process normally
@@ -221,11 +231,16 @@ export default function ManagerDashboard() {
             }}
             markedDates={markedDates}
             theme={{
-              selectedDayBackgroundColor: "#2196F3",
-              todayTextColor: "#2196F3",
-              arrowColor: "#2196F3",
-              dotColor: "#FF6B6B",
-              // No textDisabledColor
+              selectedDayBackgroundColor: theme.primary,
+              todayTextColor: theme.primary,
+              arrowColor: theme.primary,
+              dotColor: theme.danger,
+              backgroundColor: theme.card,
+              calendarBackground: theme.card,
+              textSectionTitleColor: theme.text,
+              dayTextColor: theme.text,
+              monthTextColor: theme.text,
+              textDisabledColor: theme.textSecondary + "50",
             }}
           />
 
@@ -233,19 +248,19 @@ export default function ManagerDashboard() {
           <View style={styles.legendContainer}>
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendDot, { backgroundColor: "#4CAF50" }]}
+                style={[styles.legendDot, { backgroundColor: theme.success }]}
               />
               <Text style={styles.legendText}>Today</Text>
             </View>
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendDot, { backgroundColor: "#2196F3" }]}
+                style={[styles.legendDot, { backgroundColor: theme.primary }]}
               />
               <Text style={styles.legendText}>Selected</Text>
             </View>
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendDot, { backgroundColor: "#FF6B6B" }]}
+                style={[styles.legendDot, { backgroundColor: theme.danger }]}
               />
               <Text style={styles.legendText}>Vacation</Text>
             </View>
@@ -267,9 +282,15 @@ export default function ManagerDashboard() {
                       `${booking.startTime} - ${booking.endTime}`}
                     {booking.slotCount ? ` (${booking.slotCount} slots)` : ""}
                   </Text>
-                  <Text>Court: {booking.court?.name || "N/A"}</Text>
-                  <Text>User: {booking.user?.name || "N/A"}</Text>
-                  <Text>Status: {booking.status}</Text>
+                  <Text style={styles.bookingText}>
+                    Court: {booking.court?.name || "N/A"}
+                  </Text>
+                  <Text style={styles.bookingText}>
+                    User: {booking.user?.name || "N/A"}
+                  </Text>
+                  <Text style={styles.bookingText}>
+                    Status: {booking.status}
+                  </Text>
                 </View>
               ))
             ) : (
@@ -289,122 +310,131 @@ export default function ManagerDashboard() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  content: {
-    flex: 1,
-    padding: 15,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 10,
-    color: "#666",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: "#333",
-  },
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  statItem: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
-    alignItems: "center",
-    flex: 1,
-    marginHorizontal: 5,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#2196F3",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 5,
-  },
-  calendarContainer: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 15,
-    color: "#333",
-  },
-  legendContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: 15,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 6,
-  },
-  legendText: {
-    fontSize: 12,
-    color: "#666",
-  },
-  bookingsSection: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
-    elevation: 2,
-  },
-  bookingCard: {
-    backgroundColor: "#f9f9f9",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: "#2196F3",
-  },
-  bookingTime: {
-    fontWeight: "bold",
-    fontSize: 16,
-    color: "#2196F3",
-  },
-  noBookings: {
-    textAlign: "center",
-    color: "#888",
-    fontStyle: "italic",
-    paddingVertical: 20,
-  },
-  hint: {
-    textAlign: "center",
-    color: "#aaa",
-    paddingVertical: 20,
-  },
-});
+// Move styles to a function that accepts theme
+const createStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    content: {
+      flex: 1,
+      padding: 15,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background,
+    },
+    loadingText: {
+      marginTop: 10,
+      color: theme.textSecondary,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: "bold",
+      marginBottom: 20,
+      color: theme.text,
+    },
+    statsContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 20,
+    },
+    statItem: {
+      backgroundColor: theme.card,
+      borderRadius: 10,
+      padding: 15,
+      alignItems: "center",
+      flex: 1,
+      marginHorizontal: 5,
+      elevation: 3,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+    },
+    statNumber: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: theme.primary,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 5,
+    },
+    calendarContainer: {
+      backgroundColor: theme.card,
+      borderRadius: 10,
+      padding: 15,
+      marginBottom: 20,
+      elevation: 2,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      marginBottom: 15,
+      color: theme.text,
+    },
+    legendContainer: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginTop: 15,
+      paddingTop: 15,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    legendItem: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    legendDot: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      marginRight: 6,
+    },
+    legendText: {
+      fontSize: 12,
+      color: theme.textSecondary,
+    },
+    bookingsSection: {
+      backgroundColor: theme.card,
+      borderRadius: 10,
+      padding: 15,
+      marginBottom: 20,
+      elevation: 2,
+    },
+    bookingCard: {
+      backgroundColor: theme.background,
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 10,
+      borderLeftWidth: 4,
+      borderLeftColor: theme.primary,
+    },
+    bookingTime: {
+      fontWeight: "bold",
+      fontSize: 16,
+      color: theme.primary,
+      marginBottom: 5,
+    },
+    bookingText: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      marginBottom: 2,
+    },
+    noBookings: {
+      textAlign: "center",
+      color: theme.textSecondary,
+      fontStyle: "italic",
+      paddingVertical: 20,
+    },
+    hint: {
+      textAlign: "center",
+      color: theme.textSecondary + "80", // 50% opacity
+      paddingVertical: 20,
+    },
+  });
