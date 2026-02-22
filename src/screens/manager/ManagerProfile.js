@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -11,15 +11,17 @@ import {
 } from "react-native";
 import Icon from "../../components/Icon";
 import { useAuth } from "../../contexts/AuthContext";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
-import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../../contexts/ThemeContext";
+import { useNavigation, useFocusEffect } from "@react-navigation/native"; // Add useFocusEffect
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../../services/api";
 
 const ManagerProfile = () => {
   const { user, logout, updateUser } = useAuth();
-  const { theme } = useTheme(); // Add this line
+  const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
   const navigation = useNavigation();
 
   // Create styles FIRST
@@ -44,14 +46,28 @@ const ManagerProfile = () => {
     }
   };
 
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        fetchUserData();
+      }
+    }, [autoRefresh]),
+  );
+
+  // Regular focus listener (always runs regardless of autoRefresh setting)
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
-      fetchUserData();
+      if (!autoRefresh) {
+        fetchUserData();
+      }
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, autoRefresh]);
 
   const handleLogout = async () => {
+    triggerVibration(); // Vibration on logout button press
     Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -59,6 +75,7 @@ const ManagerProfile = () => {
         style: "destructive",
         onPress: async () => {
           setLoading(true);
+          triggerVibration(); // Vibration on confirm
           await logout();
           setLoading(false);
         },
@@ -67,6 +84,7 @@ const ManagerProfile = () => {
   };
 
   const handleDeleteAccount = () => {
+    triggerVibration(); // Vibration on delete account button press
     Alert.alert(
       "Delete Account",
       "Are you sure you want to delete your account? This action is permanent and cannot be undone.",
@@ -77,11 +95,13 @@ const ManagerProfile = () => {
           style: "destructive",
           onPress: async () => {
             setLoading(true);
+            triggerVibration(); // Vibration on confirm
             try {
               const token = await AsyncStorage.getItem("token");
               await api.delete("/auth/delete-account", {
                 headers: { Authorization: `Bearer ${token}` },
               });
+              triggerVibration(); // Success vibration
               Alert.alert("Account Deleted", "Your account has been deleted.");
               await logout();
             } catch (error) {
@@ -103,38 +123,55 @@ const ManagerProfile = () => {
       id: 1,
       title: "Edit Profile Information",
       icon: "edit",
-      onPress: () =>
-        navigation.navigate("EditProfile", { onProfileUpdate: fetchUserData }),
+      onPress: () => {
+        triggerVibration(); // Vibration on menu item press
+        navigation.navigate("EditProfile", { onProfileUpdate: fetchUserData });
+      },
     },
     {
       id: 2,
       title: "Change Password",
       icon: "settings",
-      onPress: () => navigation.navigate("ChangePassword"),
+      onPress: () => {
+        triggerVibration(); // Vibration on menu item press
+        navigation.navigate("ChangePassword");
+      },
     },
     {
       id: 3,
       title: "Language",
       icon: "language",
-      onPress: () => navigation.navigate("Language"),
+      onPress: () => {
+        triggerVibration(); // Vibration on menu item press
+        navigation.navigate("Language");
+      },
     },
     {
       id: 4,
       title: "Settings",
       icon: "settings",
-      onPress: () => navigation.navigate("AppSettings"),
+      onPress: () => {
+        triggerVibration(); // Vibration on menu item press
+        navigation.navigate("AppSettings");
+      },
     },
     {
       id: 5,
       title: "About Us",
       icon: "info",
-      onPress: () => navigation.navigate("AboutUs"),
+      onPress: () => {
+        triggerVibration(); // Vibration on menu item press
+        navigation.navigate("AboutUs");
+      },
     },
     {
       id: 6,
       title: "FAQs",
       icon: "help-circle",
-      onPress: () => navigation.navigate("FAQs"),
+      onPress: () => {
+        triggerVibration(); // Vibration on menu item press
+        navigation.navigate("FAQs");
+      },
     },
     {
       id: 7,
@@ -161,12 +198,13 @@ const ManagerProfile = () => {
       <View style={styles.profileHeader}>
         <TouchableOpacity
           style={styles.avatarContainer}
-          onPress={() =>
+          onPress={() => {
+            triggerVibration(); // Vibration on avatar press
             navigation.navigate("EditProfile", {
               focusImage: true,
               onProfileUpdate: fetchUserData,
-            })
-          }
+            });
+          }}
         >
           {profileImage ? (
             <Image source={{ uri: profileImage }} style={styles.avatar} />

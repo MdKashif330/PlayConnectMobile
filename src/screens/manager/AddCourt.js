@@ -1,5 +1,5 @@
 import api from "../../services/authService";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -12,14 +12,20 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { useRoute, useNavigation } from "@react-navigation/native";
+import {
+  useRoute,
+  useNavigation,
+  useFocusEffect,
+} from "@react-navigation/native"; // Add useFocusEffect
 import { updateCourt } from "../../services/managerService";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 
 export default function AddCourt() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { theme } = useTheme(); // Add this line
+  const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
   const { venueId, court } = route.params || {};
 
   const [loading, setLoading] = useState(false);
@@ -46,9 +52,29 @@ export default function AddCourt() {
     navigation.setOptions({
       title: isEditing ? "Edit Court" : "Add New Court",
     });
-  }, [isEditing]);
+  }, [isEditing, navigation]);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        // Refresh form data if editing
+        if (court) {
+          setForm({
+            name: court?.name || "",
+            sportType: court?.sportType || "badminton",
+            length: court?.dimensions?.length?.toString() || "",
+            width: court?.dimensions?.width?.toString() || "",
+            pricePerSlot: court?.pricePerSlot?.toString() || "",
+          });
+        }
+      }
+    }, [autoRefresh, court]),
+  );
 
   const handleChange = (field, value) => {
+    triggerVibration(); // Vibration on input change
     setForm({ ...form, [field]: value });
   };
 
@@ -59,6 +85,8 @@ export default function AddCourt() {
   };
 
   const handleSubmit = async () => {
+    triggerVibration(); // Vibration on submit
+
     const { name, sportType, length, width, pricePerSlot } = form;
 
     if (!name || !length || !width || !pricePerSlot) {
@@ -88,6 +116,7 @@ export default function AddCourt() {
       }
 
       setLoading(false);
+      triggerVibration(); // Success vibration
       Alert.alert(
         "Success",
         isEditing ? "Court updated successfully" : "Court added successfully",
@@ -95,6 +124,7 @@ export default function AddCourt() {
           {
             text: "OK",
             onPress: () => {
+              triggerVibration(); // Vibration on OK press
               if (route.params?.onCourtAdded) {
                 route.params.onCourtAdded();
               }
@@ -115,12 +145,17 @@ export default function AddCourt() {
   };
 
   const totalArea = calculateArea();
-  const styles = createStyles(theme); // Create styles with theme
+  const styles = createStyles(theme);
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerVibration(); // Vibration on back
+            navigation.goBack();
+          }}
+        >
           <Icon name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
@@ -150,7 +185,10 @@ export default function AddCourt() {
           <View style={styles.pickerContainer}>
             <Picker
               selectedValue={form.sportType}
-              onValueChange={(value) => handleChange("sportType", value)}
+              onValueChange={(value) => {
+                triggerVibration(); // Vibration on picker change
+                handleChange("sportType", value);
+              }}
               style={styles.picker}
               dropdownIconColor={theme.textSecondary}
             >

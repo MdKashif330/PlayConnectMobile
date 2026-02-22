@@ -14,7 +14,8 @@ import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import { useFocusEffect } from "@react-navigation/native";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "../../components/Icon";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 import {
   getManagerFutureBookingsByStatus,
   getManagerBookingHistory,
@@ -36,6 +37,7 @@ const isMultiDayBooking = (booking) => {
 // ========== Unapproved Tab ==========
 const UnapprovedBookings = () => {
   const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
   const styles = createStyles(theme);
 
   const [bookings, setBookings] = useState([]);
@@ -56,19 +58,27 @@ const UnapprovedBookings = () => {
   // Auto-refresh when tab comes into focus
   useFocusEffect(
     useCallback(() => {
-      fetchUnapprovedBookings();
-    }, []),
+      if (autoRefresh) {
+        triggerVibration();
+        fetchUnapprovedBookings();
+      } else {
+        fetchUnapprovedBookings();
+      }
+    }, [autoRefresh]),
   );
 
   const onRefresh = async () => {
+    triggerVibration(); // Vibration on refresh
     setRefreshing(true);
     await fetchUnapprovedBookings();
     setRefreshing(false);
   };
 
   const handleApprove = async (bookingId) => {
+    triggerVibration(); // Vibration on approve
     const result = await approveBooking(bookingId);
     if (result.success) {
+      triggerVibration(); // Success vibration
       Alert.alert("Success", result.message);
       fetchUnapprovedBookings();
     } else {
@@ -77,8 +87,10 @@ const UnapprovedBookings = () => {
   };
 
   const handleReject = async (bookingId) => {
+    triggerVibration(); // Vibration on reject
     const result = await rejectBooking(bookingId);
     if (result.success) {
+      triggerVibration(); // Success vibration
       Alert.alert("Success", result.message);
       fetchUnapprovedBookings();
     } else {
@@ -168,6 +180,7 @@ const UnapprovedBookings = () => {
 // ========== Approved Tab ==========
 const ApprovedBookings = () => {
   const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
   const styles = createStyles(theme);
 
   const [bookings, setBookings] = useState([]);
@@ -186,11 +199,17 @@ const ApprovedBookings = () => {
   // Auto-refresh when tab comes into focus
   useFocusEffect(
     useCallback(() => {
-      fetchApprovedBookings();
-    }, []),
+      if (autoRefresh) {
+        triggerVibration();
+        fetchApprovedBookings();
+      } else {
+        fetchApprovedBookings();
+      }
+    }, [autoRefresh]),
   );
 
   const onRefresh = async () => {
+    triggerVibration(); // Vibration on refresh
     setRefreshing(true);
     await fetchApprovedBookings();
     setRefreshing(false);
@@ -260,6 +279,7 @@ const ApprovedBookings = () => {
 // ========== Reservations Tab ==========
 const Reservations = () => {
   const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
   const styles = createStyles(theme);
 
   const [bookings, setBookings] = useState([]);
@@ -280,11 +300,17 @@ const Reservations = () => {
   // Auto-refresh when tab comes into focus
   useFocusEffect(
     useCallback(() => {
-      fetchReservations();
-    }, []),
+      if (autoRefresh) {
+        triggerVibration();
+        fetchReservations();
+      } else {
+        fetchReservations();
+      }
+    }, [autoRefresh]),
   );
 
   const onRefresh = async () => {
+    triggerVibration(); // Vibration on refresh
     setRefreshing(true);
     await fetchReservations();
     setRefreshing(false);
@@ -363,6 +389,7 @@ const Reservations = () => {
 // ========== History Tab ==========
 const BookingHistory = () => {
   const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
   const styles = createStyles(theme);
 
   const [bookings, setBookings] = useState([]);
@@ -383,11 +410,17 @@ const BookingHistory = () => {
   // Auto-refresh when tab comes into focus
   useFocusEffect(
     useCallback(() => {
-      fetchHistory();
-    }, []),
+      if (autoRefresh) {
+        triggerVibration();
+        fetchHistory();
+      } else {
+        fetchHistory();
+      }
+    }, [autoRefresh]),
   );
 
   const onRefresh = async () => {
+    triggerVibration(); // Vibration on refresh
     setRefreshing(true);
     await fetchHistory();
     setRefreshing(false);
@@ -466,6 +499,7 @@ const BookingHistory = () => {
 export default function ManagerBookings() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const { triggerVibration } = useAppSettings(); // Add this line
   const styles = createStyles(theme);
 
   const [index, setIndex] = useState(0);
@@ -476,9 +510,15 @@ export default function ManagerBookings() {
     { key: "history", title: "History" },
   ]);
 
+  const handleTabChange = (newIndex) => {
+    triggerVibration(); // Vibration on tab change
+    setIndex(newIndex);
+  };
+
   const renderTabBar = (props) => (
     <TabBar
       {...props}
+      onTabPress={() => triggerVibration()} // Vibration on tab press
       indicatorStyle={[styles.indicator, { backgroundColor: theme.primary }]}
       style={styles.tabBar}
       labelStyle={styles.label}
@@ -501,13 +541,16 @@ export default function ManagerBookings() {
       <TabView
         navigationState={{ index, routes }}
         renderScene={renderScene}
-        onIndexChange={setIndex}
+        onIndexChange={handleTabChange}
         initialLayout={{ width: 100 }}
         renderTabBar={renderTabBar}
       />
       <TouchableOpacity
         style={[styles.plusButton, { backgroundColor: theme.primary }]}
-        onPress={() => navigation.navigate("CreateBooking")}
+        onPress={() => {
+          triggerVibration(); // Vibration on plus button
+          navigation.navigate("CreateBooking");
+        }}
       >
         <Icon icon="add" size={28} color="white" />
       </TouchableOpacity>
@@ -589,7 +632,7 @@ const createStyles = (theme) =>
       marginTop: 5,
     },
     multiDayBadge: {
-      backgroundColor: theme.warning + "20", // 12% opacity
+      backgroundColor: theme.warning + "20",
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: 12,

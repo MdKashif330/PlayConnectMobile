@@ -40,6 +40,12 @@ export const Icons = {
   confirmed: "checkmark",
   rejected: "close",
 
+  // Social Media Icons - ADD THESE LINES
+  "logo-facebook": "logo-facebook",
+  "logo-twitter": "logo-twitter",
+  "logo-instagram": "logo-instagram",
+  "logo-linkedin": "logo-linkedin",
+
   // Misc
   location: "location",
   money: "cash",

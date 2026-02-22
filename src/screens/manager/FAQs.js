@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -8,18 +8,32 @@ import {
   TextInput,
 } from "react-native";
 import Icon from "../../components/Icon";
-import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useNavigation, useFocusEffect } from "@react-navigation/native"; // Add useFocusEffect
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 
 export default function FAQs() {
   const navigation = useNavigation();
-  const { theme } = useTheme(); // Add this line
+  const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
 
   // Create styles FIRST
   const styles = createStyles(theme);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState(null);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        // Reset search and expanded state when screen focuses
+        setSearchQuery("");
+        setExpandedId(null);
+      }
+    }, [autoRefresh]),
+  );
 
   const faqCategories = [
     {
@@ -152,7 +166,18 @@ export default function FAQs() {
   ];
 
   const toggleExpand = (id) => {
+    triggerVibration(); // Vibration on expand/collapse
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const handleSearch = (text) => {
+    triggerVibration(); // Vibration on search
+    setSearchQuery(text);
+  };
+
+  const clearSearch = () => {
+    triggerVibration(); // Vibration on clear
+    setSearchQuery("");
   };
 
   const filteredFAQs = faqCategories
@@ -169,7 +194,12 @@ export default function FAQs() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerVibration(); // Vibration on back
+            navigation.goBack();
+          }}
+        >
           <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>FAQs</Text>
@@ -185,10 +215,10 @@ export default function FAQs() {
             placeholder="Search FAQs..."
             placeholderTextColor={theme.placeholder}
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={handleSearch}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
+            <TouchableOpacity onPress={clearSearch}>
               <Icon icon="close" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
@@ -245,7 +275,10 @@ export default function FAQs() {
           </Text>
           <TouchableOpacity
             style={styles.contactButton}
-            onPress={() => navigation.navigate("AboutUs")}
+            onPress={() => {
+              triggerVibration(); // Vibration on contact support
+              navigation.navigate("AboutUs");
+            }}
           >
             <Text style={styles.contactButtonText}>Contact Support</Text>
           </TouchableOpacity>

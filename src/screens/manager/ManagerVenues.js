@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -10,11 +10,14 @@ import {
   RefreshControl,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useFocusEffect } from "@react-navigation/native"; // Add this import
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 import { getManagerVenues } from "../../services/managerService";
 
 export default function ManagerVenues({ navigation }) {
-  const { theme } = useTheme(); // Add this line
+  const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
 
   // Create styles FIRST
   const styles = createStyles(theme);
@@ -34,53 +37,46 @@ export default function ManagerVenues({ navigation }) {
     setRefreshing(false);
   };
 
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        fetchVenues();
+      }
+    }, [autoRefresh]),
+  );
+
+  // Regular focus listener (always runs regardless of autoRefresh setting)
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
-      fetchVenues();
+      if (!autoRefresh) {
+        fetchVenues();
+      }
     });
 
     fetchVenues();
 
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, autoRefresh]);
 
   const onRefresh = async () => {
+    triggerVibration(); // Vibration on refresh
     setRefreshing(true);
     await fetchVenues();
-  };
-
-  const handleVenuePress = (venue) => {
-    Alert.alert(venue.name, "Choose an action", [
-      {
-        text: "View Details",
-        onPress: () =>
-          navigation.navigate("VenueDetails", {
-            venueId: venue._id,
-            venue: venue,
-          }),
-      },
-      {
-        text: "Edit Venue",
-        onPress: () =>
-          navigation.navigate("AddVenue", {
-            venue: venue,
-            onVenueUpdated: fetchVenues,
-          }),
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
   };
 
   const renderVenueItem = ({ item }) => (
     <View style={styles.venueCard}>
       <TouchableOpacity
         style={styles.venueContent}
-        onPress={() =>
+        onPress={() => {
+          triggerVibration(); // Vibration on venue card press
           navigation.navigate("VenueDetails", {
             venueId: item._id,
             venue: item,
-          })
-        }
+          });
+        }}
         activeOpacity={0.7}
       >
         <View style={styles.venueHeader}>
@@ -104,17 +100,25 @@ export default function ManagerVenues({ navigation }) {
       {/* Edit button - separate from main card press */}
       <TouchableOpacity
         style={styles.editButton}
-        onPress={() =>
+        onPress={() => {
+          triggerVibration(); // Vibration on edit button
           navigation.navigate("AddVenue", {
             venue: item,
             onVenueUpdated: fetchVenues,
-          })
-        }
+          });
+        }}
       >
         <Icon name="edit" size={20} color={theme.primary} />
       </TouchableOpacity>
     </View>
   );
+
+  const handleAddVenue = () => {
+    triggerVibration(); // Vibration on add button
+    navigation.navigate("AddVenue", {
+      onVenueAdded: fetchVenues,
+    });
+  };
 
   if (loading) {
     return (
@@ -130,11 +134,7 @@ export default function ManagerVenues({ navigation }) {
         <Text style={styles.title}>My Venues</Text>
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: theme.primary }]}
-          onPress={() =>
-            navigation.navigate("AddVenue", {
-              onVenueAdded: fetchVenues,
-            })
-          }
+          onPress={handleAddVenue}
         >
           <Icon name="add" size={24} color="white" />
         </TouchableOpacity>
@@ -149,11 +149,7 @@ export default function ManagerVenues({ navigation }) {
           </Text>
           <TouchableOpacity
             style={[styles.emptyButton, { backgroundColor: theme.primary }]}
-            onPress={() =>
-              navigation.navigate("AddVenue", {
-                onVenueAdded: fetchVenues,
-              })
-            }
+            onPress={handleAddVenue}
           >
             <Text style={styles.emptyButtonText}>+ Add Venue</Text>
           </TouchableOpacity>

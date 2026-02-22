@@ -10,7 +10,8 @@ import {
   RefreshControl,
 } from "react-native";
 import Icon from "../../components/Icon";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 import {
   useRoute,
   useNavigation,
@@ -22,7 +23,8 @@ import { deleteCourt } from "../../services/bookingManagerService";
 export default function VenueDetails() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { theme } = useTheme(); // Add this line
+  const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
   const { venueId } = route.params;
 
   // Create styles FIRST
@@ -60,7 +62,18 @@ export default function VenueDetails() {
     }
   };
 
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        fetchVenueDetails();
+      }
+    }, [autoRefresh, venueId]),
+  );
+
   const onRefresh = () => {
+    triggerVibration(); // Vibration on refresh
     setRefreshing(true);
     fetchVenueDetails();
   };
@@ -69,13 +82,17 @@ export default function VenueDetails() {
     fetchVenueDetails();
   }, [venueId]);
 
+  // Regular focus listener (always runs regardless of autoRefresh setting)
   useFocusEffect(
     useCallback(() => {
-      fetchVenueDetails();
-    }, [venueId]),
+      if (!autoRefresh) {
+        fetchVenueDetails();
+      }
+    }, [venueId, autoRefresh]),
   );
 
   const handleAddCourt = () => {
+    triggerVibration(); // Vibration on add court
     navigation.navigate("AddCourt", {
       venueId,
       onCourtAdded: fetchVenueDetails,
@@ -83,10 +100,12 @@ export default function VenueDetails() {
   };
 
   const handleEditVenue = () => {
+    triggerVibration(); // Vibration on edit venue
     navigation.navigate("EditVenue", { venue });
   };
 
   const handleDeleteCourt = (courtId, courtName) => {
+    triggerVibration(); // Vibration on delete button press
     Alert.alert(
       "Delete Court",
       `Are you sure you want to delete "${courtName}"?`,
@@ -96,8 +115,10 @@ export default function VenueDetails() {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
+            triggerVibration(); // Vibration on confirm
             const result = await deleteCourt(courtId);
             if (result.success) {
+              triggerVibration(); // Success vibration
               Alert.alert("Success", result.message);
               setCourts((prev) => prev.filter((c) => c._id !== courtId));
             } else {
@@ -110,10 +131,16 @@ export default function VenueDetails() {
   };
 
   const handleViewBookings = (courtId, courtName) => {
+    triggerVibration(); // Vibration on view bookings
     navigation.navigate("CourtBookings", {
       courtId,
       courtName,
     });
+  };
+
+  const handleBackPress = () => {
+    triggerVibration(); // Vibration on back
+    navigation.goBack();
   };
 
   if (loading && !refreshing) {
@@ -146,7 +173,7 @@ export default function VenueDetails() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={handleBackPress}>
           <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Venue Details</Text>
@@ -272,13 +299,14 @@ export default function VenueDetails() {
                 </View>
                 <TouchableOpacity
                   style={styles.editCourtButton}
-                  onPress={() =>
+                  onPress={() => {
+                    triggerVibration(); // Vibration on edit court
                     navigation.navigate("AddCourt", {
                       venueId: venue._id,
                       court: court,
                       onCourtAdded: fetchVenueDetails,
-                    })
-                  }
+                    });
+                  }}
                 >
                   <Icon icon="edit" size={20} color={theme.primary} />
                 </TouchableOpacity>

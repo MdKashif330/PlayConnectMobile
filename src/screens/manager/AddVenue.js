@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -11,16 +11,22 @@ import {
   Switch,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from "@react-navigation/native"; // Add useFocusEffect
 import api from "../../services/authService";
 import { createVenue, updateVenue } from "../../services/managerService";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 
 export default function AddVenue() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { theme } = useTheme(); // Add this line
-  const { venue } = route.params || {}; // If editing, venue will be passed
+  const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
+  const { venue } = route.params || {};
 
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -40,17 +46,43 @@ export default function AddVenue() {
   const isEditing = !!venue;
 
   useEffect(() => {
-    // Update header title
     navigation.setOptions({
       title: isEditing ? "Edit Venue" : "Add New Venue",
     });
-  }, [isEditing]);
+  }, [isEditing, navigation]);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        // Refresh form data if editing
+        if (venue) {
+          setForm({
+            name: venue?.name || "",
+            address: venue?.location?.address || "",
+            latitude: venue?.location?.latitude?.toString() || "",
+            longitude: venue?.location?.longitude?.toString() || "",
+            facilities: {
+              lights: venue?.facilities?.lights || false,
+              parking: venue?.facilities?.parking || false,
+              cafeteria: venue?.facilities?.cafeteria || false,
+              coaching: venue?.facilities?.coaching || false,
+              sportsGoods: venue?.facilities?.sportsGoods || false,
+            },
+          });
+        }
+      }
+    }, [autoRefresh, venue]),
+  );
 
   const handleChange = (field, value) => {
+    triggerVibration(); // Vibration on input change
     setForm({ ...form, [field]: value });
   };
 
   const toggleFacility = (facility) => {
+    triggerVibration(); // Vibration on facility toggle
     setForm({
       ...form,
       facilities: {
@@ -61,6 +93,8 @@ export default function AddVenue() {
   };
 
   const handleSubmit = async () => {
+    triggerVibration(); // Vibration on submit
+
     const { name, address, latitude, longitude } = form;
 
     if (!name || !address || !latitude || !longitude) {
@@ -98,6 +132,8 @@ export default function AddVenue() {
       }
 
       if (result.success) {
+        setLoading(false);
+        triggerVibration(); // Success vibration
         Alert.alert(
           "Success",
           isEditing
@@ -107,7 +143,7 @@ export default function AddVenue() {
             {
               text: "OK",
               onPress: () => {
-                // Call the refresh callback if provided
+                triggerVibration(); // Vibration on OK press
                 if (route.params?.onVenueUpdated) {
                   route.params.onVenueUpdated();
                 }
@@ -120,6 +156,7 @@ export default function AddVenue() {
         Alert.alert("Error", result.message);
       }
     } catch (error) {
+      setLoading(false);
       console.error("Submit error:", error);
       Alert.alert(
         "Error",
@@ -136,7 +173,12 @@ export default function AddVenue() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerVibration(); // Vibration on back
+            navigation.goBack();
+          }}
+        >
           <Icon name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -10,18 +10,24 @@ import {
   TouchableOpacity,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { useRoute, useNavigation } from "@react-navigation/native";
+import {
+  useRoute,
+  useNavigation,
+  useFocusEffect,
+} from "@react-navigation/native"; // Add useFocusEffect
 import {
   getCourtBookings,
   approveBooking,
   rejectBooking,
 } from "../../services/bookingManagerService";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 
 export default function CourtBookings() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { theme } = useTheme(); // Add this line
+  const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
   const { courtId, courtName } = route.params;
 
   const [bookings, setBookings] = useState([]);
@@ -30,7 +36,7 @@ export default function CourtBookings() {
 
   const fetchBookings = async () => {
     setLoading(true);
-    const result = await getCourtBookings(courtId, "CONFIRMED"); // Only confirmed
+    const result = await getCourtBookings(courtId, "CONFIRMED");
     if (result.success) {
       setBookings(result.bookings || []);
     } else {
@@ -43,7 +49,18 @@ export default function CourtBookings() {
     fetchBookings();
   }, [courtId]);
 
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        fetchBookings();
+      }
+    }, [autoRefresh, courtId]),
+  );
+
   const onRefresh = async () => {
+    triggerVibration(); // Vibration on refresh
     setRefreshing(true);
     await fetchBookings();
     setRefreshing(false);
@@ -96,7 +113,12 @@ export default function CourtBookings() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerVibration(); // Vibration on back
+            navigation.goBack();
+          }}
+        >
           <Icon name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{courtName} - Approved Bookings</Text>
@@ -187,7 +209,7 @@ const createStyles = (theme) =>
       marginTop: 2,
     },
     statusBadge: {
-      backgroundColor: theme.success + "20", // Add transparency (20 = 12% opacity)
+      backgroundColor: theme.success + "20",
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: 12,

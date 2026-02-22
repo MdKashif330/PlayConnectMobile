@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -11,9 +11,10 @@ import {
   Image,
 } from "react-native";
 import Icon from "../../components/Icon";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native"; // Add useFocusEffect
 import { useAuth } from "../../contexts/AuthContext";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../../services/api";
 import * as ImagePicker from "expo-image-picker";
@@ -22,7 +23,8 @@ import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 export default function EditProfile({ route }) {
   const navigation = useNavigation();
   const { user, updateUser } = useAuth();
-  const { theme } = useTheme(); // Add this line
+  const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
   const { focusImage, onProfileUpdate } = route.params || {};
 
   // Create styles FIRST
@@ -36,6 +38,22 @@ export default function EditProfile({ route }) {
     phone: user?.phone || "",
   });
   const [profileImage, setProfileImage] = useState(user?.profileImage || null);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        // Refresh form data with latest user info
+        setForm({
+          name: user?.name || "",
+          email: user?.email || "",
+          phone: user?.phone || "",
+        });
+        setProfileImage(user?.profileImage || null);
+      }
+    }, [autoRefresh, user]),
+  );
 
   useEffect(() => {
     (async () => {
@@ -57,6 +75,7 @@ export default function EditProfile({ route }) {
   }, [focusImage]);
 
   const handleImagePicker = async () => {
+    triggerVibration(); // Vibration on image picker
     try {
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -102,6 +121,7 @@ export default function EditProfile({ route }) {
               profileImage: response.data.imageUrl,
             };
             updateUser(updatedUser);
+            triggerVibration(); // Success vibration
             Alert.alert("Success", "Profile picture updated");
           }
         } catch (error) {
@@ -118,7 +138,14 @@ export default function EditProfile({ route }) {
     }
   };
 
+  const handleChange = (field, value) => {
+    triggerVibration(); // Vibration on input change
+    setForm({ ...form, [field]: value });
+  };
+
   const handleSave = async () => {
+    triggerVibration(); // Vibration on submit
+
     if (!form.name.trim()) {
       Alert.alert("Error", "Name is required");
       return;
@@ -144,11 +171,13 @@ export default function EditProfile({ route }) {
 
       if (response.data) {
         updateUser(response.data.user || response.data);
-
+        setLoading(false);
+        triggerVibration(); // Success vibration
         Alert.alert("Success", "Profile updated successfully", [
           {
             text: "OK",
             onPress: () => {
+              triggerVibration(); // Vibration on OK press
               if (onProfileUpdate) onProfileUpdate();
               navigation.goBack();
             },
@@ -156,20 +185,24 @@ export default function EditProfile({ route }) {
         ]);
       }
     } catch (error) {
+      setLoading(false);
       console.error("Save error:", error.response?.data || error.message);
       Alert.alert(
         "Error",
         error.response?.data?.message || "Failed to update profile",
       );
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerVibration(); // Vibration on back
+            navigation.goBack();
+          }}
+        >
           <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Profile</Text>
@@ -214,7 +247,7 @@ export default function EditProfile({ route }) {
             <TextInput
               style={styles.input}
               value={form.name}
-              onChangeText={(text) => setForm({ ...form, name: text })}
+              onChangeText={(text) => handleChange("name", text)}
               placeholder="Enter your full name"
               placeholderTextColor={theme.placeholder}
             />
@@ -225,7 +258,7 @@ export default function EditProfile({ route }) {
             <TextInput
               style={styles.input}
               value={form.email}
-              onChangeText={(text) => setForm({ ...form, email: text })}
+              onChangeText={(text) => handleChange("email", text)}
               placeholder="Enter your email"
               placeholderTextColor={theme.placeholder}
               keyboardType="email-address"
@@ -238,7 +271,7 @@ export default function EditProfile({ route }) {
             <TextInput
               style={styles.input}
               value={form.phone}
-              onChangeText={(text) => setForm({ ...form, phone: text })}
+              onChangeText={(text) => handleChange("phone", text)}
               placeholder="Enter your phone number"
               placeholderTextColor={theme.placeholder}
               keyboardType="phone-pad"

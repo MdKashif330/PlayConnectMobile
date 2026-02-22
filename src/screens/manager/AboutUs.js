@@ -10,35 +10,37 @@ import {
 } from "react-native";
 import Icon from "../../components/Icon";
 import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings";
 
 export default function AboutUs() {
   const navigation = useNavigation();
-  const { theme } = useTheme(); // Add this line
+  const { theme } = useTheme();
+  const { triggerVibration } = useAppSettings();
 
   const developers = [
     {
-      name: "Muhammad Daniyal",
+      name: "Muhammad Kashif",
       role: "Lead Developer",
-      email: "daniyal@playconnect.com",
+      email: "itxmd45@gmail.com",
       icon: "person",
     },
     {
-      name: "Ahmed Raza",
-      role: "Backend Developer",
-      email: "ahmed@playconnect.com",
+      name: "Bilal Mansoor",
+      role: "Frontend Developer",
+      email: "bilalsheikh112233@gmail.com",
       icon: "person",
     },
     {
-      name: "Fatima Khan",
+      name: "Hibah Ayesha",
       role: "UI/UX Designer",
-      email: "fatima@playconnect.com",
+      email: "hibahayesha00@gmail.com",
       icon: "person",
     },
     {
-      name: "Ali Hassan",
+      name: "Sumaiya Owais",
       role: "Mobile Developer",
-      email: "ali@playconnect.com",
+      email: "innovatenow607@gmail.com",
       icon: "person",
     },
   ];
@@ -55,16 +57,21 @@ export default function AboutUs() {
   ];
 
   const openLink = (url) => {
+    triggerVibration();
     Linking.openURL(url).catch(() => Alert.alert("Error", "Cannot open link"));
   };
 
-  // Create styles with theme
   const styles = createStyles(theme);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerVibration();
+            navigation.goBack();
+          }}
+        >
           <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>About Us</Text>
@@ -72,7 +79,6 @@ export default function AboutUs() {
       </View>
 
       <ScrollView style={styles.content}>
-        {/* App Logo and Name */}
         <View style={styles.logoSection}>
           <View style={styles.logoContainer}>
             <Icon icon="sports" size={60} color="white" />
@@ -82,7 +88,6 @@ export default function AboutUs() {
           <Text style={styles.appSlogan}>Connect. Play. Repeat.</Text>
         </View>
 
-        {/* App Description */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>About PlayConnect</Text>
           <Text style={styles.cardText}>
@@ -99,7 +104,6 @@ export default function AboutUs() {
           </Text>
         </View>
 
-        {/* Key Features */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Key Features</Text>
           {features.map((feature, index) => (
@@ -110,7 +114,6 @@ export default function AboutUs() {
           ))}
         </View>
 
-        {/* Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>50+</Text>
@@ -128,7 +131,6 @@ export default function AboutUs() {
           </View>
         </View>
 
-        {/* Development Team */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Development Team</Text>
           {developers.map((dev, index) => (
@@ -145,7 +147,6 @@ export default function AboutUs() {
           ))}
         </View>
 
-        {/* Contact Information */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Get in Touch</Text>
 
@@ -170,7 +171,7 @@ export default function AboutUs() {
             onPress={() => openLink("tel:+1234567890")}
           >
             <Icon icon="call" size={22} color={theme.primary} />
-            <Text style={styles.contactText}>+1 (234) 567-890</Text>
+            <Text style={styles.contactText}>+92 339 9000265</Text>
           </TouchableOpacity>
 
           <View style={styles.socialLinks}>
@@ -178,19 +179,34 @@ export default function AboutUs() {
               style={styles.socialIcon}
               onPress={() => openLink("https://facebook.com/playconnect")}
             >
-              <Icon icon="logo-facebook" size={30} color="#3b5998" />
+              <Icon
+                icon="logo-facebook"
+                size={30}
+                color="#3b5998"
+                outline={false}
+              />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.socialIcon}
               onPress={() => openLink("https://twitter.com/playconnect")}
             >
-              <Icon icon="logo-twitter" size={30} color="#1DA1F2" />
+              <Icon
+                icon="logo-twitter"
+                size={30}
+                color="#1DA1F2"
+                outline={false}
+              />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.socialIcon}
               onPress={() => openLink("https://instagram.com/playconnect")}
             >
-              <Icon icon="logo-instagram" size={30} color="#E4405F" />
+              <Icon
+                icon="logo-instagram"
+                size={30}
+                color="#E4405F"
+                outline={false}
+              />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.socialIcon}
@@ -198,12 +214,16 @@ export default function AboutUs() {
                 openLink("https://linkedin.com/company/playconnect")
               }
             >
-              <Icon icon="logo-linkedin" size={30} color="#0077B5" />
+              <Icon
+                icon="logo-linkedin"
+                size={30}
+                color="#0077B5"
+                outline={false}
+              />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Copyright */}
         <View style={styles.copyright}>
           <Text style={styles.copyrightText}>
             © 2024 PlayConnect. All rights reserved.
@@ -215,7 +235,6 @@ export default function AboutUs() {
   );
 }
 
-// Move styles to a function that accepts theme
 const createStyles = (theme) =>
   StyleSheet.create({
     container: {

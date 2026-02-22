@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -10,14 +10,17 @@ import {
   ActivityIndicator,
 } from "react-native";
 import Icon from "../../components/Icon";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native"; // Add useFocusEffect
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../../services/api";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 
 export default function ChangePassword() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
+
   const [loading, setLoading] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -29,6 +32,21 @@ export default function ChangePassword() {
     confirmPassword: "",
   });
 
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        // Reset form when screen focuses with auto-refresh
+        setForm({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+      }
+    }, [autoRefresh]),
+  );
+
   const validatePassword = (password) => {
     // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
@@ -36,6 +54,8 @@ export default function ChangePassword() {
   };
 
   const handleChangePassword = async () => {
+    triggerVibration(); // Vibration on submit
+
     const { currentPassword, newPassword, confirmPassword } = form;
 
     // Validation
@@ -69,19 +89,23 @@ export default function ChangePassword() {
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
+      setLoading(false);
+      triggerVibration(); // Success vibration
       Alert.alert("Success", "Password changed successfully", [
         {
           text: "OK",
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            triggerVibration(); // Vibration on OK press
+            navigation.goBack();
+          },
         },
       ]);
     } catch (error) {
+      setLoading(false);
       Alert.alert(
         "Error",
         error.response?.data?.message || "Failed to change password",
       );
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -91,7 +115,12 @@ export default function ChangePassword() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerVibration(); // Vibration on back
+            navigation.goBack();
+          }}
+        >
           <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Change Password</Text>
@@ -112,16 +141,20 @@ export default function ChangePassword() {
               <TextInput
                 style={styles.passwordInput}
                 value={form.currentPassword}
-                onChangeText={(text) =>
-                  setForm({ ...form, currentPassword: text })
-                }
+                onChangeText={(text) => {
+                  triggerVibration(); // Vibration on input change
+                  setForm({ ...form, currentPassword: text });
+                }}
                 placeholder="Enter current password"
                 placeholderTextColor={theme.placeholder}
                 secureTextEntry={!showCurrentPassword}
               />
               <TouchableOpacity
                 style={styles.eyeIcon}
-                onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                onPress={() => {
+                  triggerVibration(); // Vibration on eye icon press
+                  setShowCurrentPassword(!showCurrentPassword);
+                }}
               >
                 <Icon
                   icon={showCurrentPassword ? "eye-off" : "eye"}
@@ -132,20 +165,27 @@ export default function ChangePassword() {
             </View>
           </View>
 
+          {/* New Password */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>New Password</Text>
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
                 value={form.newPassword}
-                onChangeText={(text) => setForm({ ...form, newPassword: text })}
+                onChangeText={(text) => {
+                  triggerVibration(); // Vibration on input change
+                  setForm({ ...form, newPassword: text });
+                }}
                 placeholder="Enter new password"
                 placeholderTextColor={theme.placeholder}
                 secureTextEntry={!showNewPassword}
               />
               <TouchableOpacity
                 style={styles.eyeIcon}
-                onPress={() => setShowNewPassword(!showNewPassword)}
+                onPress={() => {
+                  triggerVibration(); // Vibration on eye icon press
+                  setShowNewPassword(!showNewPassword);
+                }}
               >
                 <Icon
                   icon={showNewPassword ? "eye-off" : "eye"}
@@ -156,22 +196,27 @@ export default function ChangePassword() {
             </View>
           </View>
 
+          {/* Confirm Password */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Confirm New Password</Text>
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
                 value={form.confirmPassword}
-                onChangeText={(text) =>
-                  setForm({ ...form, confirmPassword: text })
-                }
+                onChangeText={(text) => {
+                  triggerVibration(); // Vibration on input change
+                  setForm({ ...form, confirmPassword: text });
+                }}
                 placeholder="Confirm new password"
                 placeholderTextColor={theme.placeholder}
                 secureTextEntry={!showConfirmPassword}
               />
               <TouchableOpacity
                 style={styles.eyeIcon}
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                onPress={() => {
+                  triggerVibration(); // Vibration on eye icon press
+                  setShowConfirmPassword(!showConfirmPassword);
+                }}
               >
                 <Icon
                   icon={showConfirmPassword ? "eye-off" : "eye"}
@@ -182,6 +227,7 @@ export default function ChangePassword() {
             </View>
           </View>
 
+          {/* Password Requirements */}
           <View style={styles.requirementsContainer}>
             <Text style={styles.requirementsTitle}>Password must:</Text>
             <View style={styles.requirementItem}>
@@ -242,6 +288,7 @@ export default function ChangePassword() {
             </View>
           </View>
 
+          {/* Submit Button */}
           <TouchableOpacity
             style={styles.submitButton}
             onPress={handleChangePassword}
@@ -255,6 +302,7 @@ export default function ChangePassword() {
           </TouchableOpacity>
         </View>
 
+        {/* Note Card */}
         <View style={styles.noteCard}>
           <Icon icon="info" size={20} color={theme.primary} />
           <Text style={styles.noteText}>
@@ -267,6 +315,7 @@ export default function ChangePassword() {
   );
 }
 
+// Styles remain the same
 const createStyles = (theme) =>
   StyleSheet.create({
     container: {

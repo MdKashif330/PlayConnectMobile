@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -10,13 +10,16 @@ import {
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import { useAuth } from "../../contexts/AuthContext";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useTheme } from "../../contexts/ThemeContext";
+import { useFocusEffect } from "@react-navigation/native"; // Add this import
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 import { api } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
-  const { theme } = useTheme(); // Add this line
+  const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
 
   // Create styles FIRST
   const styles = createStyles(theme);
@@ -31,6 +34,16 @@ export default function ManagerDashboard() {
   const [vacationDates, setVacationDates] = useState({});
   const [bookingsForDate, setBookingsForDate] = useState([]);
   const [markedDates, setMarkedDates] = useState({});
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        fetchDashboardData();
+      }
+    }, [autoRefresh]),
+  );
 
   // Helper function to fetch with auth token
   const fetchWithAuth = async (endpoint) => {
@@ -130,6 +143,7 @@ export default function ManagerDashboard() {
 
   // Handle date selection
   const handleDayPress = (day) => {
+    triggerVibration(); // Vibration on date selection
     setSelectedDate(day.dateString);
     fetchBookingsForDate(day.dateString);
   };
@@ -165,6 +179,7 @@ export default function ManagerDashboard() {
   }, []);
 
   const onRefresh = async () => {
+    triggerVibration(); // Vibration on refresh
     setRefreshing(true);
     await fetchDashboardData();
     setRefreshing(false);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -11,12 +11,15 @@ import {
 } from "react-native";
 import Icon from "../../components/Icon";
 import { Calendar } from "react-native-calendars";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useFocusEffect } from "@react-navigation/native"; // Add this import
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 import { vacationAPI, venueAPI } from "../../services/api";
 import { getUser, getToken } from "../../services/authService";
 
 const ManagerVacations = () => {
-  const { theme } = useTheme(); // Add this line
+  const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
 
   // Create styles FIRST
   const styles = createStyles(theme);
@@ -34,6 +37,16 @@ const ManagerVacations = () => {
   const [venues, setVenues] = useState([]);
   const [selectedVenueId, setSelectedVenueId] = useState(null);
   const [userData, setUserData] = useState(null);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh && selectedVenueId) {
+        triggerVibration();
+        fetchVacations();
+      }
+    }, [autoRefresh, selectedVenueId]),
+  );
 
   // Load user data and venues
   useEffect(() => {
@@ -144,6 +157,7 @@ const ManagerVacations = () => {
 
   // Handle day press on calendar
   const handleDayPress = (day) => {
+    triggerVibration(); // Vibration on date selection
     const today = new Date().toISOString().split("T")[0];
     if (day.dateString < today) {
       Alert.alert("Invalid Date", "Cannot select past dates");
@@ -250,6 +264,7 @@ const ManagerVacations = () => {
 
   // Edit a vacation
   const editVacation = (vacation) => {
+    triggerVibration(); // Vibration on edit
     // Convert dates to YYYY-MM-DD format
     const formatDate = (date) => {
       if (!date) return "";
@@ -286,6 +301,8 @@ const ManagerVacations = () => {
 
   // Save vacation
   const saveVacation = async () => {
+    triggerVibration(); // Vibration on save
+
     if (!selectedVenueId) {
       Alert.alert("Error", "Please select a venue first");
       return;
@@ -325,6 +342,7 @@ const ManagerVacations = () => {
           v._id === editingVacation._id ? savedVacation.data : v,
         );
         setVacations(updatedVacations);
+        triggerVibration(); // Success vibration
         Alert.alert("Success", "Vacation period updated successfully");
       } else {
         // Create new vacation
@@ -332,6 +350,7 @@ const ManagerVacations = () => {
 
         // Add new locally
         setVacations([...vacations, savedVacation.data]);
+        triggerVibration(); // Success vibration
         Alert.alert("Success", "Vacation period saved successfully");
       }
 
@@ -364,6 +383,7 @@ const ManagerVacations = () => {
 
   // Delete vacation
   const deleteVacation = (id) => {
+    triggerVibration(); // Vibration on delete button press
     Alert.alert(
       "Delete Vacation",
       "Are you sure you want to delete this vacation period? Users will be able to book during these dates.",
@@ -373,12 +393,14 @@ const ManagerVacations = () => {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
+            triggerVibration(); // Vibration on confirm
             try {
               await vacationAPI.deleteVacation(id);
               setVacations(vacations.filter((v) => v._id !== id));
               if (editingVacation?._id === id) {
                 resetForm();
               }
+              triggerVibration(); // Success vibration
             } catch (error) {
               console.error("Error deleting vacation:", error);
               Alert.alert("Error", "Failed to delete vacation");
@@ -391,6 +413,7 @@ const ManagerVacations = () => {
 
   // Cancel edit
   const cancelEdit = () => {
+    triggerVibration(); // Vibration on cancel edit
     Alert.alert(
       "Cancel Edit",
       "Are you sure you want to cancel editing? Changes will be lost.",
@@ -398,10 +421,19 @@ const ManagerVacations = () => {
         { text: "Continue Editing", style: "cancel" },
         {
           text: "Cancel",
-          onPress: resetForm,
+          onPress: () => {
+            triggerVibration(); // Vibration on confirm
+            resetForm();
+          },
         },
       ],
     );
+  };
+
+  // Handle venue selection
+  const handleVenueSelect = (venueId) => {
+    triggerVibration(); // Vibration on venue selection
+    setSelectedVenueId(venueId);
   };
 
   // Loading state
@@ -443,7 +475,7 @@ const ManagerVacations = () => {
                   styles.venueButton,
                   selectedVenueId === venue._id && styles.venueButtonActive,
                 ]}
-                onPress={() => setSelectedVenueId(venue._id)}
+                onPress={() => handleVenueSelect(venue._id)}
               >
                 <Text
                   style={[
@@ -515,7 +547,10 @@ const ManagerVacations = () => {
               placeholder="E.g., Maintenance, Holidays, Renovation"
               placeholderTextColor={theme.placeholder}
               value={reason}
-              onChangeText={setReason}
+              onChangeText={(text) => {
+                triggerVibration(); // Vibration on text input
+                setReason(text);
+              }}
               multiline
               numberOfLines={3}
               editable={!saving}

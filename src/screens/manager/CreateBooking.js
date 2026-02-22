@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -11,10 +11,11 @@ import {
   FlatList,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native"; // Add useFocusEffect
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 import { api } from "../../services/api";
 import CalendarPicker from "react-native-calendar-picker";
 
@@ -22,6 +23,7 @@ export default function CreateBooking() {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
 
   // Create styles FIRST - before any conditional returns
   const styles = createStyles(theme);
@@ -70,6 +72,16 @@ export default function CreateBooking() {
     "22:00 - 23:00",
     "23:00 - 24:00",
   ];
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        fetchVenues();
+      }
+    }, [autoRefresh]),
+  );
 
   // Fetch manager's venues
   useEffect(() => {
@@ -127,6 +139,7 @@ export default function CreateBooking() {
   }, []);
 
   const handleDateSelect = (selectedDate) => {
+    triggerVibration(); // Vibration on date selection
     if (!selectedDate) {
       setShowDatePicker(false);
       setShowMultiStartPicker(false);
@@ -152,6 +165,7 @@ export default function CreateBooking() {
   };
 
   const toggleTimeSlot = (slot) => {
+    triggerVibration(); // Vibration on slot selection
     if (selectedSlots.includes(slot)) {
       setSelectedSlots(selectedSlots.filter((s) => s !== slot));
     } else {
@@ -190,6 +204,8 @@ export default function CreateBooking() {
   };
 
   const handleCreateBooking = async () => {
+    triggerVibration(); // Vibration on submit
+
     if (!selectedVenue || !selectedCourt || selectedSlots.length === 0) {
       Alert.alert(
         "Error",
@@ -292,6 +308,8 @@ export default function CreateBooking() {
 
       await Promise.all(bookingPromises);
 
+      setCreating(false);
+      triggerVibration(); // Success vibration
       Alert.alert(
         "Success",
         `${slotGroups.length} booking(s) created with ${selectedSlots.length} total slot(s).`,
@@ -299,19 +317,19 @@ export default function CreateBooking() {
           {
             text: "OK",
             onPress: () => {
+              triggerVibration(); // Vibration on OK press
               navigation.goBack();
             },
           },
         ],
       );
     } catch (error) {
+      setCreating(false);
       console.error("Error creating booking(s):", error);
       Alert.alert(
         "Error",
         error.response?.data?.message || "Failed to create booking(s)",
       );
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -359,7 +377,10 @@ export default function CreateBooking() {
           <View style={styles.pickerContainer}>
             <Picker
               selectedValue={selectedVenue}
-              onValueChange={(itemValue) => setSelectedVenue(itemValue)}
+              onValueChange={(itemValue) => {
+                triggerVibration(); // Vibration on venue change
+                setSelectedVenue(itemValue);
+              }}
               style={styles.picker}
               dropdownIconColor={theme.textSecondary}
             >
@@ -381,7 +402,10 @@ export default function CreateBooking() {
           <View style={styles.pickerContainer}>
             <Picker
               selectedValue={selectedCourt}
-              onValueChange={(itemValue) => setSelectedCourt(itemValue)}
+              onValueChange={(itemValue) => {
+                triggerVibration(); // Vibration on court change
+                setSelectedCourt(itemValue);
+              }}
               style={styles.picker}
               dropdownIconColor={theme.textSecondary}
             >
@@ -400,7 +424,10 @@ export default function CreateBooking() {
         {/* Multi-day toggle */}
         <TouchableOpacity
           style={styles.toggleContainer}
-          onPress={() => setIsMultiDay(!isMultiDay)}
+          onPress={() => {
+            triggerVibration(); // Vibration on toggle
+            setIsMultiDay(!isMultiDay);
+          }}
         >
           <View style={[styles.toggle, isMultiDay && styles.toggleActive]}>
             <View
@@ -419,7 +446,10 @@ export default function CreateBooking() {
             <Text style={styles.label}>Select Date *</Text>
             <TouchableOpacity
               style={styles.dateInput}
-              onPress={() => setShowDatePicker(true)}
+              onPress={() => {
+                triggerVibration(); // Vibration on date picker open
+                setShowDatePicker(true);
+              }}
             >
               <Text style={styles.dateText}>{date || "Select Date"}</Text>
             </TouchableOpacity>
@@ -430,7 +460,10 @@ export default function CreateBooking() {
               <Text style={styles.label}>Start Date *</Text>
               <TouchableOpacity
                 style={styles.dateInput}
-                onPress={() => setShowMultiStartPicker(true)}
+                onPress={() => {
+                  triggerVibration(); // Vibration on date picker open
+                  setShowMultiStartPicker(true);
+                }}
               >
                 <Text style={styles.dateText}>
                   {startDate || "Select Start Date"}
@@ -441,7 +474,10 @@ export default function CreateBooking() {
               <Text style={styles.label}>End Date *</Text>
               <TouchableOpacity
                 style={styles.dateInput}
-                onPress={() => setShowMultiEndPicker(true)}
+                onPress={() => {
+                  triggerVibration(); // Vibration on date picker open
+                  setShowMultiEndPicker(true);
+                }}
               >
                 <Text style={styles.dateText}>
                   {endDate || "Select End Date"}
@@ -506,6 +542,7 @@ export default function CreateBooking() {
             <TouchableOpacity
               style={styles.calendarCloseButton}
               onPress={() => {
+                triggerVibration(); // Vibration on close
                 setShowDatePicker(false);
                 setShowMultiStartPicker(false);
                 setShowMultiEndPicker(false);

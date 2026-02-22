@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import {
   View,
   Text,
@@ -8,18 +8,30 @@ import {
   Alert,
 } from "react-native";
 import Icon from "../../components/Icon";
-import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../../contexts/ThemeContext"; // Add this import
+import { useNavigation, useFocusEffect } from "@react-navigation/native"; // Add useFocusEffect
+import { useTheme } from "../../contexts/ThemeContext";
+import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Language() {
   const navigation = useNavigation();
-  const { theme } = useTheme(); // Add this line
+  const { theme } = useTheme();
+  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
 
   // Create styles FIRST
   const styles = createStyles(theme);
 
   const [selectedLanguage, setSelectedLanguage] = useState("english");
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (autoRefresh) {
+        triggerVibration();
+        loadSavedLanguage();
+      }
+    }, [autoRefresh]),
+  );
 
   // Load saved language on mount
   useEffect(() => {
@@ -51,6 +63,8 @@ export default function Language() {
   ];
 
   const handleLanguageSelect = async (languageId) => {
+    triggerVibration(); // Vibration on language selection
+
     setSelectedLanguage(languageId);
 
     try {
@@ -60,6 +74,7 @@ export default function Language() {
       // Here you would typically update the app's language context
       // and reload strings/resources
 
+      triggerVibration(); // Success vibration
       Alert.alert(
         "Language Changed",
         `App language has been set to ${languages.find((l) => l.id === languageId)?.name}`,
@@ -73,7 +88,12 @@ export default function Language() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerVibration(); // Vibration on back
+            navigation.goBack();
+          }}
+        >
           <Icon icon="back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Language</Text>
