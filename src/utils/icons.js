@@ -1,4 +1,3 @@
-// Ionicons mapping for Expo
 export const Icons = {
   // Navigation
   home: "home",
@@ -18,6 +17,7 @@ export const Icons = {
   search: "search",
   filter: "filter",
   refresh: "refresh",
+  events: "calendar",
 
   // Facilities
   lights: "bulb",
@@ -33,18 +33,18 @@ export const Icons = {
   cricket: "baseball",
   basketball: "basketball",
 
+  // Payment Method Icons
+  "phone-android": "phone-portrait",
+  "account-balance": "business",
+  cash: "cash",
+  card: "card",
+
   // Status
   active: "checkmark-circle",
   inactive: "close-circle",
   pending: "time",
   confirmed: "checkmark",
   rejected: "close",
-
-  // Social Media Icons - ADD THESE LINES
-  "logo-facebook": "logo-facebook",
-  "logo-twitter": "logo-twitter",
-  "logo-instagram": "logo-instagram",
-  "logo-linkedin": "logo-linkedin",
 
   // Misc
   location: "location",
@@ -53,7 +53,13 @@ export const Icons = {
   settings: "settings",
   logout: "log-out",
 
-  // For CustomHeader (you might need filled versions)
+  // Social Media Icons
+  "logo-facebook": "logo-facebook",
+  "logo-twitter": "logo-twitter",
+  "logo-instagram": "logo-instagram",
+  "logo-linkedin": "logo-linkedin",
+
+  // For CustomHeader
   notificationsFill: "notifications",
   profileFill: "person",
 };

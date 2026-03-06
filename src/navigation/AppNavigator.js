@@ -1,11 +1,10 @@
-import React, { useState } from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import React, { useState, useEffect } from "react";
+import { NavigationContainer, useNavigation } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Icon from "../components/Icon";
 import { useAuth } from "../contexts/AuthContext";
-import { useNavigation } from "@react-navigation/native";
-import { View, TouchableOpacity, StyleSheet } from "react-native";
+import { View, TouchableOpacity, StyleSheet, Animated } from "react-native";
 
 import LoginScreen from "../screens/auth/LoginScreen";
 import RegisterScreen from "../screens/auth/RegisterScreen";
@@ -16,7 +15,7 @@ import ManagerDashboard from "../screens/manager/ManagerDashboard";
 import ManagerBookings from "../screens/manager/ManagerBookings";
 import ManagerVenues from "../screens/manager/ManagerVenues";
 import ManagerVacations from "../screens/manager/ManagerVacations";
-import ManagerProfile from "../screens/manager/ManagerProfile"; // Keep only one
+import ManagerProfile from "../screens/manager/ManagerProfile";
 import NewBookingScreen from "../screens/user/NewBookingScreen";
 import VenueDetails from "../screens/manager/VenueDetails";
 import CustomHeader from "../components/CustomHeader";
@@ -25,7 +24,12 @@ import CourtBookings from "../screens/manager/CourtBookings";
 import AddVenue from "../screens/manager/AddVenue";
 import CreateBooking from "../screens/manager/CreateBooking";
 
-// NEW PROFILE SCREENS - Add these imports
+// NEW EVENT SCREENS
+import EventsList from "../screens/manager/EventsList";
+import EventForm from "../screens/manager/EventForm";
+import EventDetails from "../screens/manager/EventDetails";
+
+// PROFILE SCREENS
 import EditProfile from "../screens/manager/EditProfile";
 import ChangePassword from "../screens/manager/ChangePassword";
 import Language from "../screens/manager/Language";
@@ -59,115 +63,106 @@ function UserTabs() {
   );
 }
 
-function EmptyScreen() {
-  return null;
-}
-
 function ManagerTabs() {
+  const navigation = useNavigation();
   const [currentTab, setCurrentTab] = useState("Home");
+  const fabAnimation = useState(new Animated.Value(0))[0];
+
+  useEffect(() => {
+    Animated.spring(fabAnimation, {
+      toValue: 1,
+      tension: 50,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const animatedStyle = {
+    transform: [
+      {
+        scale: fabAnimation,
+      },
+    ],
+  };
 
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ color, size, focused }) => {
-          let iconKey;
-          if (route.name === "Home") iconKey = "home";
-          else if (route.name === "Bookings") iconKey = "bookings";
-          else if (route.name === "Plus") iconKey = "add";
-          else if (route.name === "Venues") iconKey = "venues";
-          else if (route.name === "Vacations") iconKey = "vacations";
-
-          if (route.name === "Plus" && currentTab === "Home") {
-            return (
-              <View style={styles.plusButtonContainer}>
-                <View
-                  style={[
-                    styles.plusButton,
-                    focused && styles.plusButtonFocused,
-                  ]}
-                >
-                  <Icon icon={iconKey} size={28} color="#fff" />
-                </View>
-              </View>
-            );
-          }
-
-          return <Icon icon={iconKey} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: "#2196F3",
-        tabBarInactiveTintColor: "gray",
-        headerShown: true,
-        header: () => <CustomHeader />,
-        tabBarStyle: styles.tabBar,
-        tabBarShowLabel: true,
-      })}
-    >
-      <Tab.Screen
-        name="Home"
-        component={ManagerDashboard}
-        options={{
-          tabBarLabel: "Home",
-        }}
-        listeners={{
-          focus: () => setCurrentTab("Home"),
-        }}
-      />
-      <Tab.Screen
-        name="Bookings"
-        component={ManagerBookings}
-        options={{
-          tabBarLabel: "Bookings",
-        }}
-        listeners={{
-          focus: () => setCurrentTab("Bookings"),
-        }}
-      />
-
-      {/* Plus Button - Only show when currentTab is "Home" */}
-      {currentTab === "Home" && (
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ color, size }) => {
+            let iconKey;
+            if (route.name === "Home") iconKey = "home";
+            else if (route.name === "Bookings") iconKey = "bookings";
+            else if (route.name === "Events") iconKey = "events";
+            else if (route.name === "Venues") iconKey = "venues";
+            else if (route.name === "Vacations") iconKey = "vacations";
+            return <Icon icon={iconKey} size={size} color={color} />;
+          },
+          tabBarActiveTintColor: "#2196F3",
+          tabBarInactiveTintColor: "gray",
+          headerShown: true,
+          header: () => <CustomHeader />,
+          tabBarStyle: styles.tabBar,
+          tabBarShowLabel: true,
+        })}
+      >
         <Tab.Screen
-          name="Plus"
-          component={EmptyScreen}
-          listeners={({ navigation }) => ({
-            tabPress: (e) => {
-              e.preventDefault();
-              navigation.navigate("AddVenue");
-            },
-          })}
-          options={{
-            tabBarLabel: "", // Hide label for plus button
-            tabBarButton: (props) => (
-              <TouchableOpacity
-                {...props}
-                style={styles.plusTabButton}
-                activeOpacity={0.8}
-              />
-            ),
+          name="Home"
+          component={ManagerDashboard}
+          options={{ tabBarLabel: "Home" }}
+          listeners={{
+            focus: () => setCurrentTab("Home"),
           }}
         />
-      )}
+        <Tab.Screen
+          name="Bookings"
+          component={ManagerBookings}
+          options={{ tabBarLabel: "Bookings" }}
+          listeners={{
+            focus: () => setCurrentTab("Bookings"),
+          }}
+        />
+        <Tab.Screen
+          name="Events"
+          component={EventsList}
+          options={{ tabBarLabel: "Events" }}
+          listeners={{
+            focus: () => setCurrentTab("Events"),
+          }}
+        />
+        <Tab.Screen
+          name="Venues"
+          component={ManagerVenues}
+          options={{ tabBarLabel: "Venues" }}
+          listeners={{
+            focus: () => setCurrentTab("Venues"),
+          }}
+        />
+        <Tab.Screen
+          name="Vacations"
+          component={ManagerVacations}
+          options={{ tabBarLabel: "Vacations" }}
+          listeners={{
+            focus: () => setCurrentTab("Vacations"),
+          }}
+        />
+      </Tab.Navigator>
 
-      <Tab.Screen
-        name="Venues"
-        component={ManagerVenues}
-        options={{
-          tabBarLabel: "Venues",
-        }}
-        listeners={{
-          focus: () => setCurrentTab("Venues"),
-        }}
-      />
-      <Tab.Screen
-        name="Vacations"
-        component={ManagerVacations}
-        options={{
-          tabBarLabel: "Vacations",
-        }}
-        listeners={{
-          focus: () => setCurrentTab("Vacations"),
-        }}
-      />
-    </Tab.Navigator>
+      {/* Centered Floating Action Button - Only visible on Home screen */}
+      {currentTab === "Home" && (
+        <Animated.View style={[styles.fabContainer, animatedStyle]}>
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => {
+              navigation.navigate("AddVenue");
+            }}
+            activeOpacity={0.8}
+          >
+            <Icon icon="add" size={24} color="white" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+    </View>
   );
 }
 
@@ -188,6 +183,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Register" component={RegisterScreen} />
           </>
         ) : userRole === "user" ? (
+          // User Stack
           <>
             <Stack.Screen
               name="UserTabs"
@@ -252,6 +248,35 @@ export default function AppNavigator() {
               options={{
                 headerShown: true,
                 title: "Create Booking",
+                headerBackTitle: "Back",
+              }}
+            />
+
+            {/* NEW EVENT SCREENS */}
+            <Stack.Screen
+              name="EventsList"
+              component={EventsList}
+              options={{
+                headerShown: true,
+                title: "My Events",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="EventForm"
+              component={EventForm}
+              options={{
+                headerShown: true,
+                title: "Create Event",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="EventDetails"
+              component={EventDetails}
+              options={{
+                headerShown: true,
+                title: "Event Details",
                 headerBackTitle: "Back",
               }}
             />
@@ -331,9 +356,9 @@ export default function AppNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 65,
-    paddingBottom: 4,
-    paddingTop: 8,
+    height: 60,
+    paddingBottom: 5,
+    paddingTop: 5,
     backgroundColor: "#fff",
     borderTopWidth: 1,
     borderTopColor: "#e0e0e0",
@@ -342,6 +367,25 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+  },
+  fabContainer: {
+    position: "absolute",
+    bottom: 50,
+    alignSelf: "center",
+    zIndex: 999,
+  },
+  fab: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#2196F3",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   plusTabButton: {
     flex: 1,

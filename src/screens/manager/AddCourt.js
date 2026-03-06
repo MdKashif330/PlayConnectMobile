@@ -1,5 +1,5 @@
 import api from "../../services/authService";
-import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -16,16 +16,16 @@ import {
   useRoute,
   useNavigation,
   useFocusEffect,
-} from "@react-navigation/native"; // Add useFocusEffect
+} from "@react-navigation/native";
 import { updateCourt } from "../../services/managerService";
 import { useTheme } from "../../contexts/ThemeContext";
-import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
+import { useAppSettings } from "../../hooks/useAppSettings";
 
 export default function AddCourt() {
   const route = useRoute();
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
+  const { triggerVibration, autoRefresh } = useAppSettings();
   const { venueId, court } = route.params || {};
 
   const [loading, setLoading] = useState(false);
@@ -35,6 +35,14 @@ export default function AddCourt() {
     length: court?.dimensions?.length?.toString() || "",
     width: court?.dimensions?.width?.toString() || "",
     pricePerSlot: court?.pricePerSlot?.toString() || "",
+    paymentMethods: court?.paymentMethods || [], // Array of selected payment methods
+    accountDetails: court?.accountDetails || {
+      bankName: "",
+      accountTitle: "",
+      accountNumber: "",
+      easypaisaNumber: "",
+      jazzcashNumber: "",
+    },
   });
 
   const isEditing = !!court;
@@ -48,18 +56,23 @@ export default function AddCourt() {
     "squash",
   ];
 
+  const paymentMethodOptions = [
+    { id: "cash", label: "Cash", icon: "money" },
+    { id: "easypaisa", label: "EasyPaisa", icon: "phone-android" },
+    { id: "jazzcash", label: "JazzCash", icon: "phone-android" },
+    { id: "bank", label: "Bank Account", icon: "account-balance" },
+  ];
+
   useEffect(() => {
     navigation.setOptions({
       title: isEditing ? "Edit Court" : "Add New Court",
     });
   }, [isEditing, navigation]);
 
-  // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       if (autoRefresh) {
         triggerVibration();
-        // Refresh form data if editing
         if (court) {
           setForm({
             name: court?.name || "",
@@ -67,6 +80,14 @@ export default function AddCourt() {
             length: court?.dimensions?.length?.toString() || "",
             width: court?.dimensions?.width?.toString() || "",
             pricePerSlot: court?.pricePerSlot?.toString() || "",
+            paymentMethods: court?.paymentMethods || [],
+            accountDetails: court?.accountDetails || {
+              bankName: "",
+              accountTitle: "",
+              accountNumber: "",
+              easypaisaNumber: "",
+              jazzcashNumber: "",
+            },
           });
         }
       }
@@ -74,8 +95,32 @@ export default function AddCourt() {
   );
 
   const handleChange = (field, value) => {
-    triggerVibration(); // Vibration on input change
+    triggerVibration();
     setForm({ ...form, [field]: value });
+  };
+
+  const handleAccountDetailsChange = (field, value) => {
+    triggerVibration();
+    setForm({
+      ...form,
+      accountDetails: {
+        ...form.accountDetails,
+        [field]: value,
+      },
+    });
+  };
+
+  const togglePaymentMethod = (methodId) => {
+    triggerVibration();
+    let updatedMethods = [...form.paymentMethods];
+
+    if (updatedMethods.includes(methodId)) {
+      updatedMethods = updatedMethods.filter((m) => m !== methodId);
+    } else {
+      updatedMethods.push(methodId);
+    }
+
+    setForm({ ...form, paymentMethods: updatedMethods });
   };
 
   const calculateArea = () => {
@@ -85,12 +130,50 @@ export default function AddCourt() {
   };
 
   const handleSubmit = async () => {
-    triggerVibration(); // Vibration on submit
+    triggerVibration();
 
-    const { name, sportType, length, width, pricePerSlot } = form;
+    const {
+      name,
+      sportType,
+      length,
+      width,
+      pricePerSlot,
+      paymentMethods,
+      accountDetails,
+    } = form;
 
     if (!name || !length || !width || !pricePerSlot) {
       Alert.alert("Error", "Please fill all required fields");
+      return;
+    }
+
+    if (paymentMethods.length === 0) {
+      Alert.alert("Error", "Please select at least one payment method");
+      return;
+    }
+
+    // Validate account details based on selected methods
+    if (paymentMethods.includes("bank")) {
+      if (
+        !accountDetails.bankName ||
+        !accountDetails.accountTitle ||
+        !accountDetails.accountNumber
+      ) {
+        Alert.alert("Error", "Please fill all bank account details");
+        return;
+      }
+    }
+
+    if (
+      paymentMethods.includes("easypaisa") &&
+      !accountDetails.easypaisaNumber
+    ) {
+      Alert.alert("Error", "Please enter EasyPaisa account number");
+      return;
+    }
+
+    if (paymentMethods.includes("jazzcash") && !accountDetails.jazzcashNumber) {
+      Alert.alert("Error", "Please enter JazzCash account number");
       return;
     }
 
@@ -106,6 +189,8 @@ export default function AddCourt() {
           totalArea: calculateArea(),
         },
         pricePerSlot: parseFloat(pricePerSlot),
+        paymentMethods: paymentMethods,
+        accountDetails: accountDetails,
       };
 
       let response;
@@ -116,7 +201,7 @@ export default function AddCourt() {
       }
 
       setLoading(false);
-      triggerVibration(); // Success vibration
+      triggerVibration();
       Alert.alert(
         "Success",
         isEditing ? "Court updated successfully" : "Court added successfully",
@@ -124,7 +209,7 @@ export default function AddCourt() {
           {
             text: "OK",
             onPress: () => {
-              triggerVibration(); // Vibration on OK press
+              triggerVibration();
               if (route.params?.onCourtAdded) {
                 route.params.onCourtAdded();
               }
@@ -152,7 +237,7 @@ export default function AddCourt() {
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => {
-            triggerVibration(); // Vibration on back
+            triggerVibration();
             navigation.goBack();
           }}
         >
@@ -186,7 +271,7 @@ export default function AddCourt() {
             <Picker
               selectedValue={form.sportType}
               onValueChange={(value) => {
-                triggerVibration(); // Vibration on picker change
+                triggerVibration();
                 handleChange("sportType", value);
               }}
               style={styles.picker}
@@ -251,6 +336,132 @@ export default function AddCourt() {
           </View>
         </View>
 
+        {/* Payment Methods Section */}
+        <Text style={styles.sectionTitle}>Payment Methods</Text>
+
+        {/* Payment Method Options */}
+        <View style={styles.paymentMethodsContainer}>
+          {paymentMethodOptions.map((method) => (
+            <TouchableOpacity
+              key={method.id}
+              style={[
+                styles.paymentMethodButton,
+                form.paymentMethods.includes(method.id) &&
+                  styles.paymentMethodSelected,
+              ]}
+              onPress={() => togglePaymentMethod(method.id)}
+            >
+              <Icon
+                name={method.icon}
+                size={20}
+                color={
+                  form.paymentMethods.includes(method.id)
+                    ? "white"
+                    : theme.primary
+                }
+              />
+              <Text
+                style={[
+                  styles.paymentMethodText,
+                  form.paymentMethods.includes(method.id) &&
+                    styles.paymentMethodTextSelected,
+                ]}
+              >
+                {method.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Bank Account Details */}
+        {form.paymentMethods.includes("bank") && (
+          <View style={styles.accountDetailsSection}>
+            <Text style={styles.subSectionTitle}>Bank Account Details</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Bank Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., HBL, UBL, Meezan"
+                placeholderTextColor={theme.placeholder}
+                value={form.accountDetails.bankName}
+                onChangeText={(text) =>
+                  handleAccountDetailsChange("bankName", text)
+                }
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Account Title</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Account holder name"
+                placeholderTextColor={theme.placeholder}
+                value={form.accountDetails.accountTitle}
+                onChangeText={(text) =>
+                  handleAccountDetailsChange("accountTitle", text)
+                }
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Account Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter account number"
+                placeholderTextColor={theme.placeholder}
+                keyboardType="numeric"
+                value={form.accountDetails.accountNumber}
+                onChangeText={(text) =>
+                  handleAccountDetailsChange("accountNumber", text)
+                }
+              />
+            </View>
+          </View>
+        )}
+
+        {/* EasyPaisa Details */}
+        {form.paymentMethods.includes("easypaisa") && (
+          <View style={styles.accountDetailsSection}>
+            <Text style={styles.subSectionTitle}>EasyPaisa Details</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>EasyPaisa Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="03XX-XXXXXXX"
+                placeholderTextColor={theme.placeholder}
+                keyboardType="phone-pad"
+                value={form.accountDetails.easypaisaNumber}
+                onChangeText={(text) =>
+                  handleAccountDetailsChange("easypaisaNumber", text)
+                }
+              />
+            </View>
+          </View>
+        )}
+
+        {/* JazzCash Details */}
+        {form.paymentMethods.includes("jazzcash") && (
+          <View style={styles.accountDetailsSection}>
+            <Text style={styles.subSectionTitle}>JazzCash Details</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>JazzCash Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="03XX-XXXXXXX"
+                placeholderTextColor={theme.placeholder}
+                keyboardType="phone-pad"
+                value={form.accountDetails.jazzcashNumber}
+                onChangeText={(text) =>
+                  handleAccountDetailsChange("jazzcashNumber", text)
+                }
+              />
+            </View>
+          </View>
+        )}
+
         {/* Submit Button */}
         <TouchableOpacity
           style={styles.submitButton}
@@ -286,7 +497,7 @@ export default function AddCourt() {
   );
 }
 
-// Move styles to a function that accepts theme
+// Updated styles
 const createStyles = (theme) =>
   StyleSheet.create({
     container: {
@@ -320,6 +531,13 @@ const createStyles = (theme) =>
       fontWeight: "bold",
       color: theme.text,
       marginBottom: 20,
+    },
+    subSectionTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 15,
+      marginTop: 10,
     },
     inputGroup: {
       marginBottom: 20,
@@ -386,6 +604,40 @@ const createStyles = (theme) =>
     },
     priceInput: {
       flex: 1,
+    },
+    paymentMethodsContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      marginBottom: 20,
+    },
+    paymentMethodButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: theme.primary,
+      borderRadius: 20,
+      paddingHorizontal: 15,
+      paddingVertical: 8,
+      marginRight: 10,
+      marginBottom: 10,
+      backgroundColor: "transparent",
+    },
+    paymentMethodSelected: {
+      backgroundColor: theme.primary,
+    },
+    paymentMethodText: {
+      fontSize: 14,
+      color: theme.primary,
+      marginLeft: 5,
+    },
+    paymentMethodTextSelected: {
+      color: "white",
+    },
+    accountDetailsSection: {
+      backgroundColor: theme.background,
+      padding: 15,
+      borderRadius: 8,
+      marginBottom: 20,
     },
     submitButton: {
       flexDirection: "row",

@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import Icon from "../../components/Icon";
 import { useTheme } from "../../contexts/ThemeContext";
-import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
+import { useAppSettings } from "../../hooks/useAppSettings";
 import {
   useRoute,
   useNavigation,
@@ -24,10 +24,9 @@ export default function VenueDetails() {
   const route = useRoute();
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
+  const { triggerVibration, autoRefresh } = useAppSettings();
   const { venueId } = route.params;
 
-  // Create styles FIRST
   const styles = createStyles(theme);
 
   const [venue, setVenue] = useState(null);
@@ -62,7 +61,77 @@ export default function VenueDetails() {
     }
   };
 
-  // Auto-refresh when screen comes into focus
+  // Helper function to get payment method icon and label
+  const getPaymentMethodInfo = (method) => {
+    switch (method) {
+      case "cash":
+        return { icon: "money", label: "Cash", color: "#4CAF50" };
+      case "easypaisa":
+        return { icon: "phone-android", label: "EasyPaisa", color: "#E91E63" };
+      case "jazzcash":
+        return { icon: "phone-android", label: "JazzCash", color: "#FF9800" };
+      case "bank":
+        return { icon: "account-balance", label: "Bank", color: "#2196F3" };
+      default:
+        return { icon: "info", label: method, color: theme.textSecondary };
+    }
+  };
+
+  // Helper function to render account details based on payment method
+  const renderAccountDetails = (court) => {
+    if (!court.accountDetails) return null;
+
+    const details = [];
+
+    if (
+      court.paymentMethods?.includes("bank") &&
+      court.accountDetails.bankName
+    ) {
+      details.push(
+        <View key="bank" style={styles.accountDetailItem}>
+          <Icon icon="money" size={14} color={theme.primary} />
+          <Text style={styles.accountDetailText}>
+            {court.accountDetails.bankName} -{" "}
+            {court.accountDetails.accountTitle} (
+            {court.accountDetails.accountNumber})
+          </Text>
+        </View>,
+      );
+    }
+
+    if (
+      court.paymentMethods?.includes("easypaisa") &&
+      court.accountDetails.easypaisaNumber
+    ) {
+      details.push(
+        <View key="easypaisa" style={styles.accountDetailItem}>
+          <Icon icon="phone-android" size={14} color="#E91E63" />
+          <Text style={styles.accountDetailText}>
+            EasyPaisa: {court.accountDetails.easypaisaNumber}
+          </Text>
+        </View>,
+      );
+    }
+
+    if (
+      court.paymentMethods?.includes("jazzcash") &&
+      court.accountDetails.jazzcashNumber
+    ) {
+      details.push(
+        <View key="jazzcash" style={styles.accountDetailItem}>
+          <Icon icon="phone-android" size={14} color="#FF9800" />
+          <Text style={styles.accountDetailText}>
+            JazzCash: {court.accountDetails.jazzcashNumber}
+          </Text>
+        </View>,
+      );
+    }
+
+    return details.length > 0 ? (
+      <View style={styles.accountDetailsContainer}>{details}</View>
+    ) : null;
+  };
+
   useFocusEffect(
     useCallback(() => {
       if (autoRefresh) {
@@ -73,7 +142,7 @@ export default function VenueDetails() {
   );
 
   const onRefresh = () => {
-    triggerVibration(); // Vibration on refresh
+    triggerVibration();
     setRefreshing(true);
     fetchVenueDetails();
   };
@@ -82,7 +151,6 @@ export default function VenueDetails() {
     fetchVenueDetails();
   }, [venueId]);
 
-  // Regular focus listener (always runs regardless of autoRefresh setting)
   useFocusEffect(
     useCallback(() => {
       if (!autoRefresh) {
@@ -92,7 +160,7 @@ export default function VenueDetails() {
   );
 
   const handleAddCourt = () => {
-    triggerVibration(); // Vibration on add court
+    triggerVibration();
     navigation.navigate("AddCourt", {
       venueId,
       onCourtAdded: fetchVenueDetails,
@@ -100,12 +168,12 @@ export default function VenueDetails() {
   };
 
   const handleEditVenue = () => {
-    triggerVibration(); // Vibration on edit venue
+    triggerVibration();
     navigation.navigate("EditVenue", { venue });
   };
 
   const handleDeleteCourt = (courtId, courtName) => {
-    triggerVibration(); // Vibration on delete button press
+    triggerVibration();
     Alert.alert(
       "Delete Court",
       `Are you sure you want to delete "${courtName}"?`,
@@ -115,10 +183,10 @@ export default function VenueDetails() {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            triggerVibration(); // Vibration on confirm
+            triggerVibration();
             const result = await deleteCourt(courtId);
             if (result.success) {
-              triggerVibration(); // Success vibration
+              triggerVibration();
               Alert.alert("Success", result.message);
               setCourts((prev) => prev.filter((c) => c._id !== courtId));
             } else {
@@ -131,7 +199,7 @@ export default function VenueDetails() {
   };
 
   const handleViewBookings = (courtId, courtName) => {
-    triggerVibration(); // Vibration on view bookings
+    triggerVibration();
     navigation.navigate("CourtBookings", {
       courtId,
       courtName,
@@ -139,7 +207,7 @@ export default function VenueDetails() {
   };
 
   const handleBackPress = () => {
-    triggerVibration(); // Vibration on back
+    triggerVibration();
     navigation.goBack();
   };
 
@@ -185,6 +253,11 @@ export default function VenueDetails() {
       {/* Venue Info Card */}
       <View style={styles.infoCard}>
         <Text style={styles.venueName}>{venue.name}</Text>
+
+        {venue.description && (
+          <Text style={styles.description}>{venue.description}</Text>
+        )}
+
         <View style={styles.infoRow}>
           <Icon icon="location" size={18} color={theme.textSecondary} />
           <Text style={styles.address}>
@@ -269,15 +342,15 @@ export default function VenueDetails() {
               <View style={styles.courtHeader}>
                 <Icon
                   icon={
-                    court.sportType === "badminton"
+                    court.sportType?.toLowerCase() === "badminton"
                       ? "badminton"
-                      : court.sportType === "tennis"
+                      : court.sportType?.toLowerCase() === "tennis"
                         ? "tennis"
-                        : court.sportType === "cricket"
+                        : court.sportType?.toLowerCase() === "cricket"
                           ? "cricket"
-                          : court.sportType === "football"
+                          : court.sportType?.toLowerCase() === "football"
                             ? "football"
-                            : court.sportType === "basketball"
+                            : court.sportType?.toLowerCase() === "basketball"
                               ? "basketball"
                               : "sports"
                   }
@@ -300,7 +373,7 @@ export default function VenueDetails() {
                 <TouchableOpacity
                   style={styles.editCourtButton}
                   onPress={() => {
-                    triggerVibration(); // Vibration on edit court
+                    triggerVibration();
                     navigation.navigate("AddCourt", {
                       venueId: venue._id,
                       court: court,
@@ -317,12 +390,55 @@ export default function VenueDetails() {
                   <Icon icon="delete" size={20} color={theme.danger} />
                 </TouchableOpacity>
               </View>
+
               <View style={styles.courtDetails}>
                 <Text style={styles.sportType}>
                   {court.sportType?.toUpperCase() || "UNKNOWN"}
                 </Text>
                 <Text style={styles.price}>Rs {court.pricePerSlot}/slot</Text>
               </View>
+
+              {/* Payment Methods Section */}
+              {court.paymentMethods && court.paymentMethods.length > 0 ? (
+                <View style={styles.paymentMethodsSection}>
+                  <Text style={styles.paymentMethodsTitle}>
+                    Payment Methods:
+                  </Text>
+                  <View style={styles.paymentMethodsList}>
+                    {court.paymentMethods.map((method, index) => {
+                      const methodInfo = getPaymentMethodInfo(method);
+                      return (
+                        <View key={index} style={styles.paymentMethodChip}>
+                          <Icon
+                            icon={methodInfo.icon}
+                            size={14}
+                            color={methodInfo.color}
+                          />
+                          <Text
+                            style={[
+                              styles.paymentMethodChipText,
+                              { color: methodInfo.color },
+                            ]}
+                          >
+                            {methodInfo.label}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  {/* Account Details */}
+                  {renderAccountDetails(court)}
+                </View>
+              ) : (
+                <View style={styles.paymentMethodsSection}>
+                  <Text style={styles.paymentMethodsTitle}>
+                    Payment Methods:
+                  </Text>
+                  <Text style={styles.noPaymentMethods}>Cash only</Text>
+                </View>
+              )}
+
               <View style={styles.courtActions}>
                 <TouchableOpacity
                   style={styles.viewBookingsButton}
@@ -362,7 +478,7 @@ export default function VenueDetails() {
   );
 }
 
-// Move styles to a function that accepts theme
+// Updated styles with payment methods section
 const createStyles = (theme) =>
   StyleSheet.create({
     container: {
@@ -424,7 +540,7 @@ const createStyles = (theme) =>
     },
     coordText: {
       fontSize: 13,
-      color: theme.textSecondary + "80", // 50% opacity
+      color: theme.textSecondary + "80",
     },
     section: {
       backgroundColor: theme.card,
@@ -471,6 +587,12 @@ const createStyles = (theme) =>
       color: theme.textSecondary,
       fontStyle: "italic",
     },
+    description: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginBottom: 15,
+      lineHeight: 20,
+    },
     addButton: {
       flexDirection: "row",
       alignItems: "center",
@@ -495,7 +617,7 @@ const createStyles = (theme) =>
     },
     emptySubText: {
       fontSize: 14,
-      color: theme.textSecondary + "80", // 50% opacity
+      color: theme.textSecondary + "80",
       marginTop: 5,
       textAlign: "center",
     },
@@ -526,10 +648,10 @@ const createStyles = (theme) =>
       marginLeft: 5,
     },
     activeBadgeActive: {
-      backgroundColor: theme.success + "20", // 12% opacity
+      backgroundColor: theme.success + "20",
     },
     activeBadgeInactive: {
-      backgroundColor: theme.danger + "20", // 12% opacity
+      backgroundColor: theme.danger + "20",
     },
     activeText: {
       fontSize: 12,
@@ -557,8 +679,63 @@ const createStyles = (theme) =>
       color: theme.primary,
       fontWeight: "bold",
     },
+    // Styles for payment methods
+    paymentMethodsSection: {
+      marginTop: 10,
+      marginBottom: 10,
+      padding: 10,
+      backgroundColor: theme.card,
+      borderRadius: 8,
+    },
+    paymentMethodsTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 8,
+    },
+    paymentMethodsList: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+    paymentMethodChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.background,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 15,
+      marginRight: 8,
+      marginBottom: 5,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    paymentMethodChipText: {
+      fontSize: 12,
+      marginLeft: 4,
+      fontWeight: "500",
+    },
+    noPaymentMethods: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      fontStyle: "italic",
+    },
+    accountDetailsContainer: {
+      marginTop: 8,
+    },
+    accountDetailItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 5,
+    },
+    accountDetailText: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginLeft: 8,
+      flex: 1,
+    },
     courtActions: {
       flexDirection: "row",
+      marginTop: 10,
     },
     viewBookingsButton: {
       backgroundColor: theme.primaryLight,

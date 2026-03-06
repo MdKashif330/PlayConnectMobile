@@ -1,4 +1,5 @@
 import api from "./authService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const getManagerBookings = async () => {
   try {
@@ -87,6 +88,23 @@ export const updateCourt = async (courtId, courtData) => {
     return {
       success: false,
       message: error.response?.data?.message || "Failed to update court",
+    };
+  }
+};
+
+// Delete venue
+export const deleteVenue = async (venueId) => {
+  try {
+    const token = await AsyncStorage.getItem("token");
+    const response = await api.delete(`/manager/venues/${venueId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return { success: true, message: response.data.message };
+  } catch (error) {
+    console.error("Delete venue error:", error.response?.data || error.message);
+    return {
+      success: false,
+      message: error.response?.data?.message || "Failed to delete venue",
     };
   }
 };

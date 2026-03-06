@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,21 +11,21 @@ import {
   FlatList,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
-import { useNavigation, useFocusEffect } from "@react-navigation/native"; // Add useFocusEffect
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
-import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
+import { useAppSettings } from "../../hooks/useAppSettings";
 import { api } from "../../services/api";
 import CalendarPicker from "react-native-calendar-picker";
+import Icon from "../../components/Icon";
 
 export default function CreateBooking() {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { theme } = useTheme();
-  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
+  const { triggerVibration, autoRefresh } = useAppSettings();
 
-  // Create styles FIRST - before any conditional returns
   const styles = createStyles(theme);
 
   const [loading, setLoading] = useState(true);
@@ -39,6 +39,7 @@ export default function CreateBooking() {
   const [selectedVenue, setSelectedVenue] = useState("");
   const [courts, setCourts] = useState([]);
   const [selectedCourt, setSelectedCourt] = useState("");
+  const [selectedCourtDetails, setSelectedCourtDetails] = useState(null);
   const [date, setDate] = useState("");
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [startDate, setStartDate] = useState("");
@@ -72,6 +73,22 @@ export default function CreateBooking() {
     "22:00 - 23:00",
     "23:00 - 24:00",
   ];
+
+  // Helper function to get payment method icon and label
+  const getPaymentMethodInfo = (method) => {
+    switch (method) {
+      case "cash":
+        return { icon: "money", label: "Cash", color: "#4CAF50" };
+      case "easypaisa":
+        return { icon: "phone-android", label: "EasyPaisa", color: "#E91E63" };
+      case "jazzcash":
+        return { icon: "phone-android", label: "JazzCash", color: "#FF9800" };
+      case "bank":
+        return { icon: "account-balance", label: "Bank", color: "#2196F3" };
+      default:
+        return { icon: "info", label: method, color: theme.textSecondary };
+    }
+  };
 
   // Auto-refresh when screen comes into focus
   useFocusEffect(
@@ -122,11 +139,20 @@ export default function CreateBooking() {
       setCourts(response.data || []);
       if (response.data.length > 0) {
         setSelectedCourt(response.data[0]._id);
+        setSelectedCourtDetails(response.data[0]);
       }
     } catch (error) {
       console.error("Error fetching courts:", error);
     }
   };
+
+  // Update selected court details when court changes
+  useEffect(() => {
+    if (selectedCourt && courts.length > 0) {
+      const court = courts.find((c) => c._id === selectedCourt);
+      setSelectedCourtDetails(court || null);
+    }
+  }, [selectedCourt, courts]);
 
   // Set default date to tomorrow
   useEffect(() => {
@@ -139,7 +165,7 @@ export default function CreateBooking() {
   }, []);
 
   const handleDateSelect = (selectedDate) => {
-    triggerVibration(); // Vibration on date selection
+    triggerVibration();
     if (!selectedDate) {
       setShowDatePicker(false);
       setShowMultiStartPicker(false);
@@ -165,7 +191,7 @@ export default function CreateBooking() {
   };
 
   const toggleTimeSlot = (slot) => {
-    triggerVibration(); // Vibration on slot selection
+    triggerVibration();
     if (selectedSlots.includes(slot)) {
       setSelectedSlots(selectedSlots.filter((s) => s !== slot));
     } else {
@@ -203,8 +229,63 @@ export default function CreateBooking() {
     return groups;
   };
 
+  const renderAccountDetails = () => {
+    if (!selectedCourtDetails || !selectedCourtDetails.accountDetails)
+      return null;
+
+    const details = [];
+    const accountDetails = selectedCourtDetails.accountDetails;
+
+    if (
+      selectedCourtDetails.paymentMethods?.includes("bank") &&
+      accountDetails.bankName
+    ) {
+      details.push(
+        <View key="bank" style={styles.accountDetailItem}>
+          <Icon icon="account-balance" size={16} color="#2196F3" />
+          <Text style={styles.accountDetailText}>
+            {accountDetails.bankName} - {accountDetails.accountTitle} (
+            {accountDetails.accountNumber})
+          </Text>
+        </View>,
+      );
+    }
+
+    if (
+      selectedCourtDetails.paymentMethods?.includes("easypaisa") &&
+      accountDetails.easypaisaNumber
+    ) {
+      details.push(
+        <View key="easypaisa" style={styles.accountDetailItem}>
+          <Icon icon="phone-android" size={16} color="#E91E63" />
+          <Text style={styles.accountDetailText}>
+            EasyPaisa: {accountDetails.easypaisaNumber}
+          </Text>
+        </View>,
+      );
+    }
+
+    if (
+      selectedCourtDetails.paymentMethods?.includes("jazzcash") &&
+      accountDetails.jazzcashNumber
+    ) {
+      details.push(
+        <View key="jazzcash" style={styles.accountDetailItem}>
+          <Icon icon="phone-android" size={16} color="#FF9800" />
+          <Text style={styles.accountDetailText}>
+            JazzCash: {accountDetails.jazzcashNumber}
+          </Text>
+        </View>,
+      );
+    }
+
+    return details.length > 0 ? (
+      <View style={styles.accountDetailsContainer}>{details}</View>
+    ) : null;
+  };
+
   const handleCreateBooking = async () => {
-    triggerVibration(); // Vibration on submit
+    triggerVibration();
 
     if (!selectedVenue || !selectedCourt || selectedSlots.length === 0) {
       Alert.alert(
@@ -309,7 +390,7 @@ export default function CreateBooking() {
       await Promise.all(bookingPromises);
 
       setCreating(false);
-      triggerVibration(); // Success vibration
+      triggerVibration();
       Alert.alert(
         "Success",
         `${slotGroups.length} booking(s) created with ${selectedSlots.length} total slot(s).`,
@@ -317,7 +398,7 @@ export default function CreateBooking() {
           {
             text: "OK",
             onPress: () => {
-              triggerVibration(); // Vibration on OK press
+              triggerVibration();
               navigation.goBack();
             },
           },
@@ -378,7 +459,7 @@ export default function CreateBooking() {
             <Picker
               selectedValue={selectedVenue}
               onValueChange={(itemValue) => {
-                triggerVibration(); // Vibration on venue change
+                triggerVibration();
                 setSelectedVenue(itemValue);
               }}
               style={styles.picker}
@@ -403,7 +484,7 @@ export default function CreateBooking() {
             <Picker
               selectedValue={selectedCourt}
               onValueChange={(itemValue) => {
-                triggerVibration(); // Vibration on court change
+                triggerVibration();
                 setSelectedCourt(itemValue);
               }}
               style={styles.picker}
@@ -421,11 +502,43 @@ export default function CreateBooking() {
           </View>
         </View>
 
+        {/* Payment Methods - Show when court is selected */}
+        {selectedCourtDetails && selectedCourtDetails.paymentMethods && (
+          <View style={styles.paymentSection}>
+            <Text style={styles.sectionTitle}>Payment Methods</Text>
+            <View style={styles.paymentMethodsList}>
+              {selectedCourtDetails.paymentMethods.map((method, index) => {
+                const methodInfo = getPaymentMethodInfo(method);
+                return (
+                  <View key={index} style={styles.paymentMethodChip}>
+                    <Icon
+                      icon={methodInfo.icon}
+                      size={16}
+                      color={methodInfo.color}
+                    />
+                    <Text
+                      style={[
+                        styles.paymentMethodChipText,
+                        { color: methodInfo.color },
+                      ]}
+                    >
+                      {methodInfo.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Account Details */}
+            {renderAccountDetails()}
+          </View>
+        )}
+
         {/* Multi-day toggle */}
         <TouchableOpacity
           style={styles.toggleContainer}
           onPress={() => {
-            triggerVibration(); // Vibration on toggle
+            triggerVibration();
             setIsMultiDay(!isMultiDay);
           }}
         >
@@ -447,7 +560,7 @@ export default function CreateBooking() {
             <TouchableOpacity
               style={styles.dateInput}
               onPress={() => {
-                triggerVibration(); // Vibration on date picker open
+                triggerVibration();
                 setShowDatePicker(true);
               }}
             >
@@ -461,7 +574,7 @@ export default function CreateBooking() {
               <TouchableOpacity
                 style={styles.dateInput}
                 onPress={() => {
-                  triggerVibration(); // Vibration on date picker open
+                  triggerVibration();
                   setShowMultiStartPicker(true);
                 }}
               >
@@ -475,7 +588,7 @@ export default function CreateBooking() {
               <TouchableOpacity
                 style={styles.dateInput}
                 onPress={() => {
-                  triggerVibration(); // Vibration on date picker open
+                  triggerVibration();
                   setShowMultiEndPicker(true);
                 }}
               >
@@ -542,7 +655,7 @@ export default function CreateBooking() {
             <TouchableOpacity
               style={styles.calendarCloseButton}
               onPress={() => {
-                triggerVibration(); // Vibration on close
+                triggerVibration();
                 setShowDatePicker(false);
                 setShowMultiStartPicker(false);
                 setShowMultiEndPicker(false);
@@ -557,7 +670,7 @@ export default function CreateBooking() {
   );
 }
 
-// Move styles to a function that accepts theme
+// Updated styles with payment section
 const createStyles = (theme) =>
   StyleSheet.create({
     container: {
@@ -703,6 +816,60 @@ const createStyles = (theme) =>
     selectedTimeSlotText: {
       color: "white",
       fontWeight: "600",
+    },
+    // Payment section styles
+    paymentSection: {
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      padding: 15,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 10,
+    },
+    paymentMethodsList: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      marginBottom: 10,
+    },
+    paymentMethodChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.background,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      marginRight: 10,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    paymentMethodChipText: {
+      fontSize: 14,
+      marginLeft: 6,
+      fontWeight: "500",
+    },
+    accountDetailsContainer: {
+      marginTop: 10,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    accountDetailItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 8,
+    },
+    accountDetailText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginLeft: 10,
+      flex: 1,
     },
     createButton: {
       backgroundColor: theme.primary,

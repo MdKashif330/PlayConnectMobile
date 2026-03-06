@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,16 +10,15 @@ import {
   RefreshControl,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { useFocusEffect } from "@react-navigation/native"; // Add this import
+import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../../contexts/ThemeContext";
-import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
-import { getManagerVenues } from "../../services/managerService";
+import { useAppSettings } from "../../hooks/useAppSettings";
+import { getManagerVenues, deleteVenue } from "../../services/managerService"; // Add deleteVenue import
 
 export default function ManagerVenues({ navigation }) {
   const { theme } = useTheme();
-  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
+  const { triggerVibration, autoRefresh } = useAppSettings();
 
-  // Create styles FIRST
   const styles = createStyles(theme);
 
   const [venues, setVenues] = useState([]);
@@ -47,7 +46,7 @@ export default function ManagerVenues({ navigation }) {
     }, [autoRefresh]),
   );
 
-  // Regular focus listener (always runs regardless of autoRefresh setting)
+  // Regular focus listener
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
       if (!autoRefresh) {
@@ -61,9 +60,41 @@ export default function ManagerVenues({ navigation }) {
   }, [navigation, autoRefresh]);
 
   const onRefresh = async () => {
-    triggerVibration(); // Vibration on refresh
+    triggerVibration();
     setRefreshing(true);
     await fetchVenues();
+  };
+
+  // Handle delete venue
+  const handleDeleteVenue = (venueId, venueName) => {
+    triggerVibration();
+    Alert.alert(
+      "Delete Venue",
+      `Are you sure you want to delete "${venueName}"? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            triggerVibration();
+            try {
+              const result = await deleteVenue(venueId);
+              if (result.success) {
+                triggerVibration();
+                Alert.alert("Success", "Venue deleted successfully");
+                fetchVenues(); // Refresh the list
+              } else {
+                Alert.alert("Error", result.message);
+              }
+            } catch (error) {
+              console.error("Delete venue error:", error);
+              Alert.alert("Error", "Failed to delete venue");
+            }
+          },
+        },
+      ],
+    );
   };
 
   const renderVenueItem = ({ item }) => (
@@ -71,7 +102,7 @@ export default function ManagerVenues({ navigation }) {
       <TouchableOpacity
         style={styles.venueContent}
         onPress={() => {
-          triggerVibration(); // Vibration on venue card press
+          triggerVibration();
           navigation.navigate("VenueDetails", {
             venueId: item._id,
             venue: item,
@@ -97,24 +128,35 @@ export default function ManagerVenues({ navigation }) {
         </View>
       </TouchableOpacity>
 
-      {/* Edit button - separate from main card press */}
-      <TouchableOpacity
-        style={styles.editButton}
-        onPress={() => {
-          triggerVibration(); // Vibration on edit button
-          navigation.navigate("AddVenue", {
-            venue: item,
-            onVenueUpdated: fetchVenues,
-          });
-        }}
-      >
-        <Icon name="edit" size={20} color={theme.primary} />
-      </TouchableOpacity>
+      {/* Action Buttons Container */}
+      <View style={styles.actionButtons}>
+        {/* Edit button */}
+        <TouchableOpacity
+          style={[styles.actionButton, styles.editButton]}
+          onPress={() => {
+            triggerVibration();
+            navigation.navigate("AddVenue", {
+              venue: item,
+              onVenueUpdated: fetchVenues,
+            });
+          }}
+        >
+          <Icon name="edit" size={18} color={theme.primary} />
+        </TouchableOpacity>
+
+        {/* Delete button */}
+        <TouchableOpacity
+          style={[styles.actionButton, styles.deleteButton]}
+          onPress={() => handleDeleteVenue(item._id, item.name)}
+        >
+          <Icon name="delete" size={18} color={theme.danger} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
   const handleAddVenue = () => {
-    triggerVibration(); // Vibration on add button
+    triggerVibration();
     navigation.navigate("AddVenue", {
       onVenueAdded: fetchVenues,
     });
@@ -174,7 +216,7 @@ export default function ManagerVenues({ navigation }) {
   );
 }
 
-// Move styles to a function that accepts theme
+// Updated styles
 const createStyles = (theme) =>
   StyleSheet.create({
     container: {
@@ -224,6 +266,7 @@ const createStyles = (theme) =>
     },
     venueContent: {
       padding: 15,
+      paddingRight: 80, // Make space for action buttons
     },
     venueHeader: {
       flexDirection: "row",
@@ -236,9 +279,6 @@ const createStyles = (theme) =>
       marginLeft: 10,
       color: theme.text,
       flex: 1,
-    },
-    editIcon: {
-      marginLeft: 10,
     },
     venueAddress: {
       fontSize: 14,
@@ -258,6 +298,26 @@ const createStyles = (theme) =>
       marginBottom: 5,
       fontSize: 12,
       color: theme.primary,
+    },
+    actionButtons: {
+      position: "absolute",
+      top: 15,
+      right: 15,
+      flexDirection: "row",
+    },
+    actionButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      justifyContent: "center",
+      alignItems: "center",
+      marginLeft: 8,
+    },
+    editButton: {
+      backgroundColor: theme.primaryLight,
+    },
+    deleteButton: {
+      backgroundColor: theme.danger + "20", // Light red background
     },
     emptyContainer: {
       flex: 1,
@@ -287,17 +347,5 @@ const createStyles = (theme) =>
       color: "white",
       fontWeight: "bold",
       fontSize: 16,
-    },
-    editButton: {
-      position: "absolute",
-      top: 15,
-      right: 15,
-      padding: 8,
-      backgroundColor: theme.primaryLight,
-      borderRadius: 20,
-      width: 36,
-      height: 36,
-      justifyContent: "center",
-      alignItems: "center",
     },
   });
