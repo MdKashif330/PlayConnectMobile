@@ -37,32 +37,125 @@ import AppSettings from "../screens/manager/AppSettings";
 import AboutUs from "../screens/manager/AboutUs";
 import FAQs from "../screens/manager/FAQs";
 
+// NEW USER SCREENS (to be created)
+import HomeScreen from "../screens/user/HomeScreen";
+import ChatbotScreen from "../screens/user/ChatbotScreen";
+import FavoritesScreen from "../screens/user/FavoritesScreen";
+import VenueDetailScreen from "../screens/user/VenueDetailScreen";
+import EventDetailScreen from "../screens/user/EventDetailScreen";
+import BookingDetailScreen from "../screens/user/BookingDetailScreen";
+import CreateBookingScreen from "../screens/user/CreateBookingScreen";
+import UserEventsList from "../screens/user/UserEventsList";
+
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
+// UPDATED: UserTabs with 4 tabs (Home, Bookings, Chatbot, Favorites)
 function UserTabs() {
+  const navigation = useNavigation();
+  const [currentTab, setCurrentTab] = useState("Home");
+  const fabAnimation = useState(new Animated.Value(0))[0];
+
+  useEffect(() => {
+    Animated.spring(fabAnimation, {
+      toValue: 1,
+      tension: 50,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const animatedStyle = {
+    transform: [
+      {
+        scale: fabAnimation,
+      },
+    ],
+  };
+
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ color, size }) => {
-          let iconKey;
-          if (route.name === "Dashboard") iconKey = "home";
-          else if (route.name === "Bookings") iconKey = "bookings";
-          else if (route.name === "Profile") iconKey = "profile";
-          return <Icon icon={iconKey} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: "#4CAF50",
-        tabBarInactiveTintColor: "gray",
-        headerShown: false,
-      })}
-    >
-      <Tab.Screen name="Dashboard" component={UserDashboard} />
-      <Tab.Screen name="Bookings" component={UserBookings} />
-      <Tab.Screen name="Profile" component={UserProfile} />
-    </Tab.Navigator>
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ color, size }) => {
+            let iconKey;
+            if (route.name === "Home") iconKey = "home";
+            else if (route.name === "Bookings") iconKey = "bookings";
+            else if (route.name === "Chatbot") iconKey = "chat";
+            else if (route.name === "Favorites") iconKey = "favorite";
+            else if (route.name === "Profile") iconKey = "profile"; // Add this
+            return <Icon icon={iconKey} size={size} color={color} />;
+          },
+          tabBarActiveTintColor: "#2E7D32",
+          tabBarInactiveTintColor: "gray",
+          headerShown: false,
+          header: () => <CustomHeader />,
+          tabBarStyle: styles.tabBar,
+          tabBarShowLabel: true,
+        })}
+      >
+        <Tab.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ tabBarLabel: "Home" }}
+          listeners={{
+            focus: () => setCurrentTab("Home"),
+          }}
+        />
+        <Tab.Screen
+          name="Bookings"
+          component={UserBookings}
+          options={{ tabBarLabel: "Bookings" }}
+          listeners={{
+            focus: () => setCurrentTab("Bookings"),
+          }}
+        />
+        <Tab.Screen
+          name="Chatbot"
+          component={ChatbotScreen}
+          options={{ tabBarLabel: "Chatbot" }}
+          listeners={{
+            focus: () => setCurrentTab("Chatbot"),
+          }}
+        />
+        <Tab.Screen
+          name="Favorites"
+          component={FavoritesScreen}
+          options={{ tabBarLabel: "Favorites" }}
+          listeners={{
+            focus: () => setCurrentTab("Favorites"),
+          }}
+        />
+        {/* ADD PROFILE TAB HERE */}
+        <Tab.Screen
+          name="Profile"
+          component={UserProfile}
+          options={{ tabBarLabel: "Profile" }}
+          listeners={{
+            focus: () => setCurrentTab("Profile"),
+          }}
+        />
+      </Tab.Navigator>
+
+      {/* Floating Action Button - Only visible on Home and Bookings screens */}
+      {(currentTab === "Home" || currentTab === "Bookings") && (
+        <Animated.View style={[styles.fabContainer, animatedStyle]}>
+          <TouchableOpacity
+            style={[styles.fab, { backgroundColor: "#2E7D32" }]}
+            onPress={() => {
+              navigation.navigate("CreateBooking");
+            }}
+            activeOpacity={0.8}
+          >
+            <Icon icon="add" size={24} color="white" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+    </View>
   );
 }
 
+// ManagerTabs remains exactly the same
 function ManagerTabs() {
   const navigation = useNavigation();
   const [currentTab, setCurrentTab] = useState("Home");
@@ -183,7 +276,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Register" component={RegisterScreen} />
           </>
         ) : userRole === "user" ? (
-          // User Stack
+          // User Stack (UPDATED with new screens)
           <>
             <Stack.Screen
               name="UserTabs"
@@ -199,9 +292,55 @@ export default function AppNavigator() {
                 headerBackTitle: "Back",
               }}
             />
+            {/* NEW USER SCREENS */}
+            <Stack.Screen
+              name="VenueDetail"
+              component={VenueDetailScreen}
+              options={{
+                headerShown: true,
+                title: "Venue Details",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="EventDetail"
+              component={EventDetailScreen}
+              options={{
+                headerShown: true,
+                title: "Event Details",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="CreateBooking"
+              component={CreateBookingScreen}
+              options={{
+                headerShown: true,
+                title: "Create Booking",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="UserEventsList"
+              component={UserEventsList}
+              options={{
+                headerShown: true,
+                title: "Events",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="BookingDetail"
+              component={BookingDetailScreen}
+              options={{
+                headerShown: true,
+                title: "Booking Details",
+                headerBackTitle: "Back",
+              }}
+            />
           </>
         ) : userRole === "manager" ? (
-          // Manager Stack (Tabs + additional screens)
+          // Manager Stack (unchanged)
           <>
             <Stack.Screen name="ManagerTabs" component={ManagerTabs} />
 
@@ -370,14 +509,14 @@ const styles = StyleSheet.create({
   },
   fabContainer: {
     position: "absolute",
-    bottom: 50,
+    bottom: 80,
     alignSelf: "center",
     zIndex: 999,
   },
   fab: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#2196F3",
     justifyContent: "center",
     alignItems: "center",

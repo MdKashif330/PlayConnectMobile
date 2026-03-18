@@ -8,12 +8,13 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Image,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useAppSettings } from "../../hooks/useAppSettings";
-import { getManagerVenues, deleteVenue } from "../../services/managerService"; // Add deleteVenue import
+import { getManagerVenues, deleteVenue } from "../../services/managerService";
 
 export default function ManagerVenues({ navigation }) {
   const { theme } = useTheme();
@@ -83,7 +84,7 @@ export default function ManagerVenues({ navigation }) {
               if (result.success) {
                 triggerVibration();
                 Alert.alert("Success", "Venue deleted successfully");
-                fetchVenues(); // Refresh the list
+                fetchVenues();
               } else {
                 Alert.alert("Error", result.message);
               }
@@ -97,10 +98,14 @@ export default function ManagerVenues({ navigation }) {
     );
   };
 
-  const renderVenueItem = ({ item }) => (
-    <View style={styles.venueCard}>
+  const renderVenueItem = ({ item }) => {
+    // Get the first image if available
+    const firstImage =
+      item.images && item.images.length > 0 ? item.images[0] : null;
+
+    return (
       <TouchableOpacity
-        style={styles.venueContent}
+        style={styles.venueCard}
         onPress={() => {
           triggerVibration();
           navigation.navigate("VenueDetails", {
@@ -108,52 +113,72 @@ export default function ManagerVenues({ navigation }) {
             venue: item,
           });
         }}
-        activeOpacity={0.7}
+        activeOpacity={0.9}
       >
-        <View style={styles.venueHeader}>
-          <Icon name="place" size={24} color={theme.primary} />
-          <Text style={styles.venueName}>{item.name}</Text>
+        {/* Big Cover Image - First image only */}
+        {firstImage ? (
+          <Image source={{ uri: firstImage }} style={styles.coverImage} />
+        ) : (
+          <View style={[styles.coverImage, styles.placeholderCover]}>
+            <Icon name="location-city" size={50} color={theme.textSecondary} />
+            <Text style={styles.placeholderText}>No image</Text>
+          </View>
+        )}
+
+        {/* Venue Info Overlay/Bottom Section */}
+        <View style={styles.infoSection}>
+          <View style={styles.venueHeader}>
+            <Icon name="place" size={20} color={theme.primary} />
+            <Text style={styles.venueName}>{item.name}</Text>
+          </View>
+
+          <Text style={styles.venueAddress} numberOfLines={2}>
+            {item.location?.address || item.address || "No address provided"}
+          </Text>
+
+          {/* Facilities */}
+          <View style={styles.facilities}>
+            {item.facilities?.lights && (
+              <Text style={styles.facility}>💡 Lights</Text>
+            )}
+            {item.facilities?.parking && (
+              <Text style={styles.facility}>🅿️ Parking</Text>
+            )}
+            {item.facilities?.cafeteria && (
+              <Text style={styles.facility}>☕ Cafeteria</Text>
+            )}
+          </View>
         </View>
-        <Text style={styles.venueAddress}>{item.location?.address}</Text>
-        <View style={styles.facilities}>
-          {item.facilities?.lights && (
-            <Text style={styles.facility}>💡 Lights</Text>
-          )}
-          {item.facilities?.parking && (
-            <Text style={styles.facility}>🅿️ Parking</Text>
-          )}
-          {item.facilities?.cafeteria && (
-            <Text style={styles.facility}>☕ Cafeteria</Text>
-          )}
+
+        {/* Action Buttons - Positioned on the card */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.editButton]}
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent card press
+              triggerVibration();
+              navigation.navigate("AddVenue", {
+                venue: item,
+                onVenueUpdated: fetchVenues,
+              });
+            }}
+          >
+            <Icon name="edit" size={18} color={theme.primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent card press
+              handleDeleteVenue(item._id, item.name);
+            }}
+          >
+            <Icon name="delete" size={18} color={theme.danger} />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
-
-      {/* Action Buttons Container */}
-      <View style={styles.actionButtons}>
-        {/* Edit button */}
-        <TouchableOpacity
-          style={[styles.actionButton, styles.editButton]}
-          onPress={() => {
-            triggerVibration();
-            navigation.navigate("AddVenue", {
-              venue: item,
-              onVenueUpdated: fetchVenues,
-            });
-          }}
-        >
-          <Icon name="edit" size={18} color={theme.primary} />
-        </TouchableOpacity>
-
-        {/* Delete button */}
-        <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => handleDeleteVenue(item._id, item.name)}
-        >
-          <Icon name="delete" size={18} color={theme.danger} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const handleAddVenue = () => {
     triggerVibration();
@@ -216,7 +241,7 @@ export default function ManagerVenues({ navigation }) {
   );
 }
 
-// Updated styles
+// Updated styles with prominent cover image
 const createStyles = (theme) =>
   StyleSheet.create({
     container: {
@@ -256,27 +281,44 @@ const createStyles = (theme) =>
     venueCard: {
       backgroundColor: theme.card,
       borderRadius: 12,
-      marginBottom: 15,
-      elevation: 2,
+      marginBottom: 20,
+      elevation: 3,
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
+      shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
-      shadowRadius: 2,
+      shadowRadius: 4,
+      overflow: "hidden",
       position: "relative",
     },
-    venueContent: {
+    coverImage: {
+      width: "100%",
+      height: 180,
+      resizeMode: "cover",
+    },
+    placeholderCover: {
+      backgroundColor: theme.background,
+      justifyContent: "center",
+      alignItems: "center",
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    placeholderText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginTop: 8,
+    },
+    infoSection: {
       padding: 15,
-      paddingRight: 80, // Make space for action buttons
     },
     venueHeader: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 8,
+      marginBottom: 5,
     },
     venueName: {
       fontSize: 18,
       fontWeight: "bold",
-      marginLeft: 10,
+      marginLeft: 8,
       color: theme.text,
       flex: 1,
     },
@@ -301,23 +343,30 @@ const createStyles = (theme) =>
     },
     actionButtons: {
       position: "absolute",
-      top: 15,
-      right: 15,
+      top: 10,
+      right: 10,
       flexDirection: "row",
+      zIndex: 10,
     },
     actionButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       justifyContent: "center",
       alignItems: "center",
       marginLeft: 8,
+      backgroundColor: "white",
+      elevation: 3,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
     },
     editButton: {
-      backgroundColor: theme.primaryLight,
+      backgroundColor: "white",
     },
     deleteButton: {
-      backgroundColor: theme.danger + "20", // Light red background
+      backgroundColor: "white",
     },
     emptyContainer: {
       flex: 1,

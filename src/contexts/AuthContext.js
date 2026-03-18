@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from "react";
 import {
   getToken,
   getUserRole,
-  getUser, // Import existing getUser function
+  getUser,
   logout as authLogout,
 } from "../services/authService";
 
@@ -54,11 +54,8 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  // ADD THIS FUNCTION
   const updateUser = (userData) => {
     setUser(userData);
-    // Also update in AsyncStorage if you want to persist it
-    // You'll need to import AsyncStorage and save it
   };
 
   return (

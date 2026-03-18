@@ -9,8 +9,11 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  Image,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   useNavigation,
   useRoute,
@@ -30,12 +33,14 @@ export default function AddVenue() {
   const { venue } = route.params || {};
 
   const [loading, setLoading] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [venueImages, setVenueImages] = useState(venue?.images || []);
   const [form, setForm] = useState({
     name: venue?.name || "",
     description: venue?.description || "",
-    address: venue?.address || "", // Address field - shown in venue list
-    selectedLocation: venue?.selectedLocation || "", // Location name from map
+    address: venue?.address || "",
+    selectedLocation: venue?.selectedLocation || "",
     latitude: venue?.location?.latitude?.toString() || "",
     longitude: venue?.location?.longitude?.toString() || "",
     facilities: {
@@ -48,6 +53,19 @@ export default function AddVenue() {
   });
 
   const isEditing = !!venue;
+
+  useEffect(() => {
+    (async () => {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission needed",
+          "Please grant camera roll permissions to upload venue images.",
+        );
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     navigation.setOptions({
@@ -75,6 +93,7 @@ export default function AddVenue() {
               sportsGoods: venue?.facilities?.sportsGoods || false,
             },
           });
+          setVenueImages(venue?.images || []);
         }
       }
     }, [autoRefresh, venue]),
@@ -100,11 +119,107 @@ export default function AddVenue() {
     triggerVibration();
     setForm({
       ...form,
-      selectedLocation: location.address, // Show the selected location name
+      selectedLocation: location.address,
       latitude: location.latitude.toString(),
       longitude: location.longitude.toString(),
-      // Do NOT update address field - keep it separate
     });
+  };
+
+  const pickImage = async () => {
+    triggerVibration();
+
+    try {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission needed",
+          "Please grant camera roll permissions.",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: false,
+        allowsMultipleSelection: true,
+        selectionLimit: 5,
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets) {
+        setImageLoading(true);
+
+        const uploadedUrls = [];
+
+        for (const asset of result.assets) {
+          const formData = new FormData();
+          formData.append("image", {
+            uri: asset.uri,
+            type: "image/jpeg",
+            name: `venue_${Date.now()}_${Math.random()}.jpg`,
+          });
+
+          try {
+            const token = await AsyncStorage.getItem("token");
+
+            // FIXED URL: Added /manager prefix
+            const response = await api.post(
+              "/manager/venues/upload-image",
+              formData,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "multipart/form-data",
+                },
+              },
+            );
+
+            if (response.data.imageUrl) {
+              uploadedUrls.push(response.data.imageUrl);
+              console.log("Image uploaded:", response.data.imageUrl);
+            }
+          } catch (error) {
+            console.error(
+              "Upload error:",
+              error.response?.data || error.message,
+            );
+          }
+        }
+
+        setVenueImages([...venueImages, ...uploadedUrls]);
+        console.log("Updated venueImages:", [...venueImages, ...uploadedUrls]);
+
+        setImageLoading(false);
+        triggerVibration();
+
+        if (uploadedUrls.length > 0) {
+          Alert.alert(
+            "Success",
+            `${uploadedUrls.length} image(s) uploaded successfully`,
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Image picker error:", error);
+      Alert.alert("Error", "Failed to pick image");
+      setImageLoading(false);
+    }
+  };
+
+  const removeImage = (index) => {
+    triggerVibration();
+    Alert.alert("Remove Image", "Are you sure you want to remove this image?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: () => {
+          const updatedImages = venueImages.filter((_, i) => i !== index);
+          setVenueImages(updatedImages);
+        },
+      },
+    ]);
   };
 
   const handleSubmit = async () => {
@@ -136,17 +251,19 @@ export default function AddVenue() {
       const venueData = {
         name,
         description: description || "",
-        address: address, // Address field at top level
-        selectedLocation: selectedLocation, // Store the selected location name
+        address: address,
+        selectedLocation: selectedLocation,
         location: {
           address: address,
           latitude: lat,
           longitude: lng,
         },
         facilities: form.facilities,
+        images: venueImages,
       };
 
-      console.log("Sending venue data:", venueData);
+      console.log("Sending venue data with images:", venueImages);
+
       let result;
       if (isEditing) {
         result = await updateVenue(venue._id, venueData);
@@ -211,6 +328,53 @@ export default function AddVenue() {
         <View style={styles.formCard}>
           <Text style={styles.sectionTitle}>Venue Information</Text>
 
+          {/* Venue Images Section */}
+          <View style={styles.imagesSection}>
+            <Text style={styles.label}>Venue Images</Text>
+            <Text style={styles.imageHint}>
+              Upload up to 5 images of the venue
+            </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.imageScroll}
+            >
+              {venueImages.map((image, index) => (
+                <View key={index} style={styles.imageContainer}>
+                  <Image source={{ uri: image }} style={styles.venueImage} />
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={() => removeImage(index)}
+                  >
+                    <Icon name="close" size={16} color="white" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              {venueImages.length < 5 && (
+                <TouchableOpacity
+                  style={styles.addImageButton}
+                  onPress={pickImage}
+                  disabled={imageLoading}
+                >
+                  {imageLoading ? (
+                    <ActivityIndicator size="small" color={theme.primary} />
+                  ) : (
+                    <>
+                      <Icon
+                        name="add-photo-alternate"
+                        size={30}
+                        color={theme.primary}
+                      />
+                      <Text style={styles.addImageText}>Add Image</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </View>
+
           {/* Name */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
@@ -240,7 +404,7 @@ export default function AddVenue() {
             />
           </View>
 
-          {/* Address Field - For display in venue list */}
+          {/* Address Field */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
               Address <Text style={styles.required}>*</Text>
@@ -263,11 +427,10 @@ export default function AddVenue() {
             </View>
           </View>
 
-          {/* Location Picker - Shows selected place from map */}
+          {/* Location Picker */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Map Location</Text>
 
-            {/* Selected location display */}
             <View style={styles.selectedLocationContainer}>
               <Icon name="place" size={20} color={theme.primary} />
               <TextInput
@@ -280,7 +443,6 @@ export default function AddVenue() {
               />
             </View>
 
-            {/* Map picker button */}
             <TouchableOpacity
               style={styles.locationPickerButton}
               onPress={() => {
@@ -301,7 +463,6 @@ export default function AddVenue() {
               />
             </TouchableOpacity>
 
-            {/* Hidden coordinates fields */}
             <View style={styles.hiddenFields}>
               <TextInput
                 value={form.latitude}
@@ -389,7 +550,7 @@ export default function AddVenue() {
   );
 }
 
-// Updated styles
+// Updated styles with image section
 const createStyles = (theme) =>
   StyleSheet.create({
     container: {
@@ -423,6 +584,59 @@ const createStyles = (theme) =>
       fontWeight: "bold",
       color: theme.text,
       marginBottom: 20,
+    },
+    // Image section styles
+    imagesSection: {
+      marginBottom: 20,
+    },
+    imageHint: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginBottom: 10,
+      fontStyle: "italic",
+    },
+    imageScroll: {
+      flexDirection: "row",
+      marginBottom: 10,
+    },
+    imageContainer: {
+      position: "relative",
+      marginRight: 10,
+    },
+    venueImage: {
+      width: 100,
+      height: 100,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    removeImageButton: {
+      position: "absolute",
+      top: -5,
+      right: -5,
+      backgroundColor: theme.danger,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      justifyContent: "center",
+      alignItems: "center",
+      elevation: 3,
+    },
+    addImageButton: {
+      width: 100,
+      height: 100,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: theme.border,
+      borderStyle: "dashed",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background,
+    },
+    addImageText: {
+      fontSize: 12,
+      color: theme.primary,
+      marginTop: 5,
     },
     inputGroup: {
       marginBottom: 20,
@@ -467,7 +681,7 @@ const createStyles = (theme) =>
     },
     selectedLocationInput: {
       paddingLeft: 40,
-      backgroundColor: theme.background + "80", // Slightly transparent to show it's read-only
+      backgroundColor: theme.background + "80",
     },
     locationPickerButton: {
       flexDirection: "row",

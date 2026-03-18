@@ -9,9 +9,12 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   useRoute,
   useNavigation,
@@ -20,6 +23,7 @@ import {
 import { updateCourt } from "../../services/managerService";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useAppSettings } from "../../hooks/useAppSettings";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 
 export default function AddCourt() {
   const route = useRoute();
@@ -29,13 +33,15 @@ export default function AddCourt() {
   const { venueId, court } = route.params || {};
 
   const [loading, setLoading] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [courtImages, setCourtImages] = useState(court?.images || []);
   const [form, setForm] = useState({
     name: court?.name || "",
     sportType: court?.sportType || "badminton",
     length: court?.dimensions?.length?.toString() || "",
     width: court?.dimensions?.width?.toString() || "",
     pricePerSlot: court?.pricePerSlot?.toString() || "",
-    paymentMethods: court?.paymentMethods || [], // Array of selected payment methods
+    paymentMethods: court?.paymentMethods || [],
     accountDetails: court?.accountDetails || {
       bankName: "",
       accountTitle: "",
@@ -64,6 +70,19 @@ export default function AddCourt() {
   ];
 
   useEffect(() => {
+    (async () => {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission needed",
+          "Please grant camera roll permissions to upload court images.",
+        );
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     navigation.setOptions({
       title: isEditing ? "Edit Court" : "Add New Court",
     });
@@ -89,6 +108,7 @@ export default function AddCourt() {
               jazzcashNumber: "",
             },
           });
+          setCourtImages(court?.images || []);
         }
       }
     }, [autoRefresh, court]),
@@ -121,6 +141,98 @@ export default function AddCourt() {
     }
 
     setForm({ ...form, paymentMethods: updatedMethods });
+  };
+
+  const pickImage = async () => {
+    triggerVibration();
+
+    try {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission needed",
+          "Please grant camera roll permissions.",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: false,
+        allowsMultipleSelection: true,
+        selectionLimit: 5,
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets) {
+        setImageLoading(true);
+
+        const uploadedUrls = [];
+
+        for (const asset of result.assets) {
+          const formData = new FormData();
+          formData.append("image", {
+            uri: asset.uri,
+            type: "image/jpeg",
+            name: `court_${Date.now()}_${Math.random()}.jpg`,
+          });
+
+          try {
+            const token = await AsyncStorage.getItem("token");
+
+            const response = await api.post(
+              "/manager/courts/upload-image",
+              formData,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "multipart/form-data",
+                },
+              },
+            );
+
+            if (response.data.imageUrl) {
+              uploadedUrls.push(response.data.imageUrl);
+            }
+          } catch (error) {
+            console.error("Upload error:", error);
+          }
+        }
+
+        // Update state with new image URLs
+        setCourtImages([...courtImages, ...uploadedUrls]);
+
+        setImageLoading(false);
+        triggerVibration();
+
+        if (uploadedUrls.length > 0) {
+          Alert.alert(
+            "Success",
+            `${uploadedUrls.length} image(s) uploaded successfully`,
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Image picker error:", error);
+      Alert.alert("Error", "Failed to pick image");
+      setImageLoading(false);
+    }
+  };
+
+  const removeImage = (index) => {
+    triggerVibration();
+    Alert.alert("Remove Image", "Are you sure you want to remove this image?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: () => {
+          const updatedImages = courtImages.filter((_, i) => i !== index);
+          setCourtImages(updatedImages);
+        },
+      },
+    ]);
   };
 
   const calculateArea = () => {
@@ -179,6 +291,8 @@ export default function AddCourt() {
 
     setLoading(true);
     try {
+      const token = await AsyncStorage.getItem("token");
+
       const courtData = {
         venueId,
         name,
@@ -191,6 +305,7 @@ export default function AddCourt() {
         pricePerSlot: parseFloat(pricePerSlot),
         paymentMethods: paymentMethods,
         accountDetails: accountDetails,
+        images: courtImages, // Just pass the URLs directly
       };
 
       let response;
@@ -251,6 +366,53 @@ export default function AddCourt() {
 
       <View style={styles.formCard}>
         <Text style={styles.sectionTitle}>Court Information</Text>
+
+        {/* Court Images Section - Similar to profile picture style */}
+        <View style={styles.imagesSection}>
+          <Text style={styles.label}>Court Images</Text>
+          <Text style={styles.imageHint}>
+            Upload up to 5 images of the court
+          </Text>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.imageScroll}
+          >
+            {courtImages.map((image, index) => (
+              <View key={index} style={styles.imageContainer}>
+                <Image source={{ uri: image }} style={styles.courtImage} />
+                <TouchableOpacity
+                  style={styles.removeImageButton}
+                  onPress={() => removeImage(index)}
+                >
+                  <Icon name="close" size={16} color="white" />
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            {courtImages.length < 5 && (
+              <TouchableOpacity
+                style={styles.addImageButton}
+                onPress={pickImage}
+                disabled={imageLoading}
+              >
+                {imageLoading ? (
+                  <ActivityIndicator size="small" color={theme.primary} />
+                ) : (
+                  <>
+                    <Icon
+                      name="add-photo-alternate"
+                      size={30}
+                      color={theme.primary}
+                    />
+                    <Text style={styles.addImageText}>Add Image</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+        </View>
 
         {/* Court Name */}
         <View style={styles.inputGroup}>
@@ -538,6 +700,58 @@ const createStyles = (theme) =>
       color: theme.text,
       marginBottom: 15,
       marginTop: 10,
+    },
+    imagesSection: {
+      marginBottom: 20,
+    },
+    imageHint: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginBottom: 10,
+      fontStyle: "italic",
+    },
+    imageScroll: {
+      flexDirection: "row",
+      marginBottom: 10,
+    },
+    imageContainer: {
+      position: "relative",
+      marginRight: 10,
+    },
+    courtImage: {
+      width: 100,
+      height: 100,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    removeImageButton: {
+      position: "absolute",
+      top: -5,
+      right: -5,
+      backgroundColor: theme.danger,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      justifyContent: "center",
+      alignItems: "center",
+      elevation: 3,
+    },
+    addImageButton: {
+      width: 100,
+      height: 100,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: theme.border,
+      borderStyle: "dashed",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background,
+    },
+    addImageText: {
+      fontSize: 12,
+      color: theme.primary,
+      marginTop: 5,
     },
     inputGroup: {
       marginBottom: 20,

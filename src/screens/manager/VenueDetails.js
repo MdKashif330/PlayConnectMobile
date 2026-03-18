@@ -8,6 +8,9 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Image,
+  Modal,
+  Dimensions,
 } from "react-native";
 import Icon from "../../components/Icon";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -19,6 +22,8 @@ import {
 } from "@react-navigation/native";
 import { getVenueDetails, getVenueCourts } from "../../services/managerService";
 import { deleteCourt } from "../../services/bookingManagerService";
+
+const { width } = Dimensions.get("window");
 
 export default function VenueDetails() {
   const route = useRoute();
@@ -33,6 +38,9 @@ export default function VenueDetails() {
   const [courts, setCourts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const fetchVenueDetails = async () => {
     try {
@@ -250,6 +258,32 @@ export default function VenueDetails() {
         </TouchableOpacity>
       </View>
 
+      {/* Venue Images Section - ALL VENUE IMAGES HERE */}
+      {venue.images && venue.images.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.venueImagesContainer}
+        >
+          {venue.images.map((image, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => {
+                setSelectedImage(image);
+                setShowImageModal(true);
+              }}
+            >
+              <Image source={{ uri: image }} style={styles.venueImage} />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={styles.noVenueImageContainer}>
+          <Icon icon="image" size={50} color={theme.textSecondary} />
+          <Text style={styles.noImageText}>No venue images</Text>
+        </View>
+      )}
+
       {/* Venue Info Card */}
       <View style={styles.infoCard}>
         <Text style={styles.venueName}>{venue.name}</Text>
@@ -261,7 +295,7 @@ export default function VenueDetails() {
         <View style={styles.infoRow}>
           <Icon icon="location" size={18} color={theme.textSecondary} />
           <Text style={styles.address}>
-            {venue.location?.address || "No address provided"}
+            {venue.location?.address || venue.address || "No address provided"}
           </Text>
         </View>
         {venue.location?.latitude && venue.location?.longitude && (
@@ -337,118 +371,184 @@ export default function VenueDetails() {
             </Text>
           </View>
         ) : (
-          courts.map((court) => (
-            <View key={court._id} style={styles.courtCard}>
-              <View style={styles.courtHeader}>
-                <Icon
-                  icon={
-                    court.sportType?.toLowerCase() === "badminton"
-                      ? "badminton"
-                      : court.sportType?.toLowerCase() === "tennis"
-                        ? "tennis"
-                        : court.sportType?.toLowerCase() === "cricket"
-                          ? "cricket"
-                          : court.sportType?.toLowerCase() === "football"
-                            ? "football"
-                            : court.sportType?.toLowerCase() === "basketball"
-                              ? "basketball"
-                              : "sports"
-                  }
-                  size={24}
-                  color={theme.primary}
-                />
-                <Text style={styles.courtName}>{court.name}</Text>
-                <View
-                  style={[
-                    styles.activeBadge,
-                    court.isActive
-                      ? styles.activeBadgeActive
-                      : styles.activeBadgeInactive,
-                  ]}
-                >
-                  <Text style={styles.activeText}>
-                    {court.isActive ? "Active" : "Inactive"}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.editCourtButton}
-                  onPress={() => {
-                    triggerVibration();
-                    navigation.navigate("AddCourt", {
-                      venueId: venue._id,
-                      court: court,
-                      onCourtAdded: fetchVenueDetails,
-                    });
-                  }}
-                >
-                  <Icon icon="edit" size={20} color={theme.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleDeleteCourt(court._id, court.name)}
-                >
-                  <Icon icon="delete" size={20} color={theme.danger} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.courtDetails}>
-                <Text style={styles.sportType}>
-                  {court.sportType?.toUpperCase() || "UNKNOWN"}
-                </Text>
-                <Text style={styles.price}>Rs {court.pricePerSlot}/slot</Text>
-              </View>
-
-              {/* Payment Methods Section */}
-              {court.paymentMethods && court.paymentMethods.length > 0 ? (
-                <View style={styles.paymentMethodsSection}>
-                  <Text style={styles.paymentMethodsTitle}>
-                    Payment Methods:
-                  </Text>
-                  <View style={styles.paymentMethodsList}>
-                    {court.paymentMethods.map((method, index) => {
-                      const methodInfo = getPaymentMethodInfo(method);
-                      return (
-                        <View key={index} style={styles.paymentMethodChip}>
-                          <Icon
-                            icon={methodInfo.icon}
-                            size={14}
-                            color={methodInfo.color}
+          courts.map((court) => {
+            return (
+              <View key={court._id} style={styles.courtCard}>
+                {/* Scrollable Court Images - All images scrollable */}
+                {court.images && court.images.length > 0 ? (
+                  <View>
+                    <ScrollView
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      onScroll={(event) => {
+                        const index = Math.round(
+                          event.nativeEvent.contentOffset.x / width,
+                        );
+                        setCurrentImageIndex(index);
+                      }}
+                      scrollEventThrottle={16}
+                      style={styles.courtImageScrollView}
+                    >
+                      {court.images.map((image, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          onPress={() => {
+                            setSelectedImage(image);
+                            setShowImageModal(true);
+                          }}
+                          style={styles.courtImageContainer}
+                        >
+                          <Image
+                            source={{ uri: image }}
+                            style={styles.courtCoverImageFull}
+                            resizeMode="cover"
                           />
-                          <Text
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+
+                    {/* Pagination dots */}
+                    {court.images.length > 1 && (
+                      <View style={styles.paginationContainer}>
+                        {court.images.map((_, index) => (
+                          <View
+                            key={index}
                             style={[
-                              styles.paymentMethodChipText,
-                              { color: methodInfo.color },
+                              styles.paginationDot,
+                              index === currentImageIndex &&
+                                styles.paginationDotActive,
                             ]}
-                          >
-                            {methodInfo.label}
-                          </Text>
-                        </View>
-                      );
-                    })}
+                          />
+                        ))}
+                      </View>
+                    )}
+
+                    {/* Image count indicator */}
+                    <View style={styles.imageCountBadge}>
+                      <Text style={styles.imageCountText}>
+                        📷 {court.images.length}
+                      </Text>
+                    </View>
                   </View>
+                ) : (
+                  <View style={styles.noCourtImageContainer}>
+                    <Icon icon="sports" size={40} color={theme.textSecondary} />
+                    <Text style={styles.noImageText}>No images</Text>
+                  </View>
+                )}
 
-                  {/* Account Details */}
-                  {renderAccountDetails(court)}
+                <View style={styles.courtHeader}>
+                  <Icon
+                    icon={
+                      court.sportType?.toLowerCase() === "badminton"
+                        ? "badminton"
+                        : court.sportType?.toLowerCase() === "tennis"
+                          ? "tennis"
+                          : court.sportType?.toLowerCase() === "cricket"
+                            ? "cricket"
+                            : court.sportType?.toLowerCase() === "football"
+                              ? "football"
+                              : court.sportType?.toLowerCase() === "basketball"
+                                ? "basketball"
+                                : "sports"
+                    }
+                    size={24}
+                    color={theme.primary}
+                  />
+                  <Text style={styles.courtName}>{court.name}</Text>
+                  <View
+                    style={[
+                      styles.activeBadge,
+                      court.isActive
+                        ? styles.activeBadgeActive
+                        : styles.activeBadgeInactive,
+                    ]}
+                  >
+                    <Text style={styles.activeText}>
+                      {court.isActive ? "Active" : "Inactive"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.editCourtButton}
+                    onPress={() => {
+                      triggerVibration();
+                      navigation.navigate("AddCourt", {
+                        venueId: venue._id,
+                        court: court,
+                        onCourtAdded: fetchVenueDetails,
+                      });
+                    }}
+                  >
+                    <Icon icon="edit" size={20} color={theme.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDeleteCourt(court._id, court.name)}
+                  >
+                    <Icon icon="delete" size={20} color={theme.danger} />
+                  </TouchableOpacity>
                 </View>
-              ) : (
-                <View style={styles.paymentMethodsSection}>
-                  <Text style={styles.paymentMethodsTitle}>
-                    Payment Methods:
+
+                <View style={styles.courtDetails}>
+                  <Text style={styles.sportType}>
+                    {court.sportType?.toUpperCase() || "UNKNOWN"}
                   </Text>
-                  <Text style={styles.noPaymentMethods}>Cash only</Text>
+                  <Text style={styles.price}>Rs {court.pricePerSlot}/slot</Text>
                 </View>
-              )}
 
-              <View style={styles.courtActions}>
-                <TouchableOpacity
-                  style={styles.viewBookingsButton}
-                  onPress={() => handleViewBookings(court._id, court.name)}
-                >
-                  <Text style={styles.viewBookingsText}>View Bookings</Text>
-                </TouchableOpacity>
+                {/* Payment Methods Section */}
+                {court.paymentMethods && court.paymentMethods.length > 0 ? (
+                  <View style={styles.paymentMethodsSection}>
+                    <Text style={styles.paymentMethodsTitle}>
+                      Payment Methods:
+                    </Text>
+                    <View style={styles.paymentMethodsList}>
+                      {court.paymentMethods.map((method, index) => {
+                        const methodInfo = getPaymentMethodInfo(method);
+                        return (
+                          <View key={index} style={styles.paymentMethodChip}>
+                            <Icon
+                              icon={methodInfo.icon}
+                              size={14}
+                              color={methodInfo.color}
+                            />
+                            <Text
+                              style={[
+                                styles.paymentMethodChipText,
+                                { color: methodInfo.color },
+                              ]}
+                            >
+                              {methodInfo.label}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+
+                    {/* Account Details */}
+                    {renderAccountDetails(court)}
+                  </View>
+                ) : (
+                  <View style={styles.paymentMethodsSection}>
+                    <Text style={styles.paymentMethodsTitle}>
+                      Payment Methods:
+                    </Text>
+                    <Text style={styles.noPaymentMethods}>Cash only</Text>
+                  </View>
+                )}
+
+                <View style={styles.courtActions}>
+                  <TouchableOpacity
+                    style={styles.viewBookingsButton}
+                    onPress={() => handleViewBookings(court._id, court.name)}
+                  >
+                    <Text style={styles.viewBookingsText}>View Bookings</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </View>
 
@@ -474,11 +574,30 @@ export default function VenueDetails() {
           </View>
         </View>
       </View>
+
+      {/* Image Modal */}
+      <Modal
+        visible={showImageModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <TouchableOpacity
+            style={styles.modalCloseButton}
+            onPress={() => setShowImageModal(false)}
+          >
+            <Icon icon="close" size={30} color="white" />
+          </TouchableOpacity>
+          {selectedImage && (
+            <Image source={{ uri: selectedImage }} style={styles.modalImage} />
+          )}
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
 
-// Updated styles with payment methods section
 const createStyles = (theme) =>
   StyleSheet.create({
     container: {
@@ -509,9 +628,35 @@ const createStyles = (theme) =>
       fontWeight: "bold",
       color: theme.text,
     },
+    // Venue Images styles
+    venueImagesContainer: {
+      marginTop: 15,
+      marginHorizontal: 15,
+      flexDirection: "row",
+    },
+    venueImage: {
+      width: 120,
+      height: 100,
+      borderRadius: 10,
+      marginRight: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    noVenueImageContainer: {
+      height: 100,
+      margin: 15,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderStyle: "dashed",
+    },
     infoCard: {
       backgroundColor: theme.card,
       margin: 15,
+      marginTop: 10,
       padding: 20,
       borderRadius: 12,
       elevation: 2,
@@ -623,27 +768,86 @@ const createStyles = (theme) =>
     },
     courtCard: {
       backgroundColor: theme.background,
-      padding: 15,
       borderRadius: 10,
-      marginBottom: 10,
+      marginBottom: 15,
       borderWidth: 1,
       borderColor: theme.border,
+      overflow: "hidden",
+    },
+    courtImageScrollView: {
+      width: "100%",
+      height: 150,
+    },
+    courtImageContainer: {
+      width: width,
+      height: 200,
+    },
+    courtCoverImageFull: {
+      width: "100%",
+      height: "100%",
+    },
+    paginationContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      position: "absolute",
+      bottom: 10,
+      width: "100%",
+    },
+    paginationDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: "rgba(255,255,255,0.5)",
+      marginHorizontal: 4,
+    },
+    paginationDotActive: {
+      backgroundColor: "#2196F3",
+      width: 20,
+    },
+    imageCountBadge: {
+      position: "absolute",
+      top: 10,
+      right: 10,
+      backgroundColor: "rgba(0,0,0,0.6)",
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    imageCountText: {
+      color: "white",
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    noCourtImageContainer: {
+      height: 80,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    noImageText: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 5,
     },
     courtHeader: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 10,
+      padding: 12,
+      paddingBottom: 5,
     },
     courtName: {
       fontSize: 16,
       fontWeight: "600",
-      marginLeft: 10,
+      marginLeft: 8,
       flex: 1,
       color: theme.text,
     },
     activeBadge: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
       borderRadius: 12,
       marginLeft: 5,
     },
@@ -654,44 +858,46 @@ const createStyles = (theme) =>
       backgroundColor: theme.danger + "20",
     },
     activeText: {
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: "bold",
       color: theme.text,
     },
     editCourtButton: {
-      marginLeft: 10,
+      marginLeft: 8,
       padding: 5,
     },
     deleteButton: {
-      marginLeft: 10,
+      marginLeft: 5,
       padding: 5,
     },
     courtDetails: {
       flexDirection: "row",
       justifyContent: "space-between",
-      marginBottom: 10,
+      paddingHorizontal: 12,
+      paddingBottom: 8,
     },
     sportType: {
       color: theme.textSecondary,
       fontWeight: "600",
+      fontSize: 13,
     },
     price: {
       color: theme.primary,
       fontWeight: "bold",
+      fontSize: 13,
     },
-    // Styles for payment methods
     paymentMethodsSection: {
-      marginTop: 10,
+      marginHorizontal: 12,
       marginBottom: 10,
       padding: 10,
       backgroundColor: theme.card,
       borderRadius: 8,
     },
     paymentMethodsTitle: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: "600",
       color: theme.text,
-      marginBottom: 8,
+      marginBottom: 5,
     },
     paymentMethodsList: {
       flexDirection: "row",
@@ -701,21 +907,21 @@ const createStyles = (theme) =>
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: theme.background,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 15,
-      marginRight: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 12,
+      marginRight: 6,
       marginBottom: 5,
       borderWidth: 1,
       borderColor: theme.border,
     },
     paymentMethodChipText: {
-      fontSize: 12,
+      fontSize: 11,
       marginLeft: 4,
       fontWeight: "500",
     },
     noPaymentMethods: {
-      fontSize: 14,
+      fontSize: 13,
       color: theme.textSecondary,
       fontStyle: "italic",
     },
@@ -728,14 +934,15 @@ const createStyles = (theme) =>
       marginBottom: 5,
     },
     accountDetailText: {
-      fontSize: 12,
+      fontSize: 11,
       color: theme.textSecondary,
-      marginLeft: 8,
+      marginLeft: 6,
       flex: 1,
     },
     courtActions: {
       flexDirection: "row",
-      marginTop: 10,
+      padding: 12,
+      paddingTop: 0,
     },
     viewBookingsButton: {
       backgroundColor: theme.primaryLight,
@@ -748,6 +955,7 @@ const createStyles = (theme) =>
     viewBookingsText: {
       color: theme.primary,
       fontWeight: "600",
+      fontSize: 13,
     },
     statsCard: {
       backgroundColor: theme.card,
@@ -780,5 +988,22 @@ const createStyles = (theme) =>
       fontSize: 12,
       color: theme.textSecondary,
       marginTop: 5,
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.9)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    modalCloseButton: {
+      position: "absolute",
+      top: 40,
+      right: 20,
+      zIndex: 1,
+    },
+    modalImage: {
+      width: "90%",
+      height: "70%",
+      resizeMode: "contain",
     },
   });

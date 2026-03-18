@@ -216,7 +216,6 @@ export default function EditProfile({ route }) {
       </View>
 
       <View style={styles.content}>
-        {/* Profile Image Section */}
         <TouchableOpacity
           style={styles.imageContainer}
           onPress={handleImagePicker}

@@ -19,6 +19,14 @@ export const Icons = {
   refresh: "refresh",
   events: "calendar",
 
+  // NEW: Chat and Favorite icons
+  chat: "chatbubble",
+  favorite: "heart",
+  "favorite-filled": "heart",
+  "chat-outline": "chatbubble-outline",
+  "favorite-outline": "heart-outline",
+  "check-outline": "checkmark-circle-outline",
+
   // Facilities
   lights: "bulb",
   parking: "car",
@@ -38,6 +46,7 @@ export const Icons = {
   "account-balance": "business",
   cash: "cash",
   card: "card",
+  payment: "card",
 
   // Status
   active: "checkmark-circle",
@@ -45,6 +54,7 @@ export const Icons = {
   pending: "time",
   confirmed: "checkmark",
   rejected: "close",
+  check: "checkmark",
 
   // Misc
   location: "location",
@@ -52,6 +62,24 @@ export const Icons = {
   info: "information-circle",
   settings: "settings",
   logout: "log-out",
+  dropdown: "chevron-down",
+  organizer: "person",
+  time: "time",
+  "chevron-right": "chevron-forward",
+  "chevron-right-outline": "chevron-forward-outline",
+  sports: "fitness",
+  price: "pricetag",
+  phone: "call",
+  email: "mail",
+  circle: "ellipse",
+  "check-circle": "checkmark-circle",
+  ruler: "resize",
+  square: "square",
+  pin: "pin",
+  call: "call",
+  car: "car",
+  cafe: "cafe",
+  shirt: "shirt",
 
   // Social Media Icons
   "logo-facebook": "logo-facebook",
