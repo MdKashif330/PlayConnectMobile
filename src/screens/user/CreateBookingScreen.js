@@ -3,13 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   FlatList,
   Image,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import CustomHeader from "../../components/CustomHeader";
@@ -37,6 +37,68 @@ const ALL_TIME_SLOTS = [
   "21:00 - 22:00",
 ];
 
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith("http")) return imagePath;
+  return `http://localhost:5000/uploads/${imagePath}`;
+};
+
+// Helper functions for slot grouping
+const getSlotStartHour = (slot) => {
+  const [startTime] = slot.split(" - ");
+  return parseInt(startTime.split(":")[0]);
+};
+
+const getSlotEndHour = (slot) => {
+  const [, endTime] = slot.split(" - ");
+  return parseInt(endTime.split(":")[0]);
+};
+
+const sortSlots = (slots) => {
+  return [...slots].sort((a, b) => getSlotStartHour(a) - getSlotStartHour(b));
+};
+
+const areConsecutiveSlots = (slot1, slot2) => {
+  const endHour1 = getSlotEndHour(slot1);
+  const startHour2 = getSlotStartHour(slot2);
+  return endHour1 === startHour2;
+};
+
+const groupConsecutiveSlots = (slots) => {
+  if (!slots.length) return [];
+
+  const sortedSlots = sortSlots(slots);
+  const groups = [];
+  let currentGroup = [sortedSlots[0]];
+
+  for (let i = 1; i < sortedSlots.length; i++) {
+    if (areConsecutiveSlots(sortedSlots[i - 1], sortedSlots[i])) {
+      currentGroup.push(sortedSlots[i]);
+    } else {
+      groups.push([...currentGroup]);
+      currentGroup = [sortedSlots[i]];
+    }
+  }
+  groups.push(currentGroup);
+
+  return groups;
+};
+
+const formatSlotGroup = (group) => {
+  if (group.length === 0) return "";
+  if (group.length === 1) return group[0];
+
+  const firstSlot = group[0];
+  const lastSlot = group[group.length - 1];
+  const startTime = firstSlot.split(" - ")[0];
+  const endTime = lastSlot.split(" - ")[1];
+  return `${startTime} - ${endTime}`;
+};
+
+const calculateGroupPrice = (group, pricePerSlot) => {
+  return group.length * pricePerSlot;
+};
+
 const CreateBookingScreen = ({ navigation, route }) => {
   const { user } = useAuth();
 
@@ -46,7 +108,6 @@ const CreateBookingScreen = ({ navigation, route }) => {
     ? new Date(route.params.date)
     : new Date();
   const preselectedSlot = route.params?.slot;
-  const preselectedPrice = route.params?.price;
 
   const [step, setStep] = useState(preselectedVenueId ? 3 : 1);
   const [loading, setLoading] = useState(false);
@@ -56,9 +117,16 @@ const CreateBookingScreen = ({ navigation, route }) => {
   const [selectedCourt, setSelectedCourt] = useState(null);
   const [selectedDate, setSelectedDate] = useState(preselectedDate);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [availableSlots, setAvailableSlots] = useState(new Set());
-  const [selectedSlot, setSelectedSlot] = useState(preselectedSlot || null);
+  const [slotStatus, setSlotStatus] = useState({
+    available: new Set(ALL_TIME_SLOTS),
+    past: new Set(),
+    booked: new Set(),
+  });
+  const [selectedSlots, setSelectedSlots] = useState(
+    preselectedSlot ? [preselectedSlot] : [],
+  );
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [vacationInfo, setVacationInfo] = useState(null);
   const [bookingDetails, setBookingDetails] = useState({
     name: user?.name || "",
     phone: "",
@@ -69,7 +137,6 @@ const CreateBookingScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     fetchVenues();
-
     if (preselectedVenueId) {
       loadPreselectedData();
     }
@@ -82,7 +149,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
   }, [selectedVenue]);
 
   useEffect(() => {
-    if (selectedCourt && selectedDate) {
+    if (selectedCourt && selectedDate && !vacationInfo) {
       fetchAvailableSlots();
     }
   }, [selectedCourt, selectedDate]);
@@ -90,14 +157,12 @@ const CreateBookingScreen = ({ navigation, route }) => {
   const loadPreselectedData = async () => {
     try {
       setLoading(true);
-      // Fetch venues first
       const venuesResponse = await venueAPI.getAllPublicVenues();
       const venue = venuesResponse.data.find(
         (v) => v._id === preselectedVenueId,
       );
       if (venue) {
         setSelectedVenue(venue);
-        // Then fetch courts for this venue
         const courtsResponse =
           await venueAPI.getPublicVenueCourts(preselectedVenueId);
         const court = courtsResponse.data.find(
@@ -120,7 +185,6 @@ const CreateBookingScreen = ({ navigation, route }) => {
       const response = await venueAPI.getAllPublicVenues({ limit: 50 });
       setVenues(response.data);
     } catch (error) {
-      console.error("Error fetching venues:", error);
       Alert.alert("Error", "Failed to load venues");
     } finally {
       setLoading(false);
@@ -133,7 +197,6 @@ const CreateBookingScreen = ({ navigation, route }) => {
       const response = await venueAPI.getPublicVenueCourts(venueId);
       setCourts(response.data);
     } catch (error) {
-      console.error("Error fetching courts:", error);
       Alert.alert("Error", "Failed to load courts");
     } finally {
       setLoading(false);
@@ -142,64 +205,92 @@ const CreateBookingScreen = ({ navigation, route }) => {
 
   const fetchAvailableSlots = async () => {
     if (!selectedCourt || !selectedVenue) return;
+    if (vacationInfo) return;
 
     try {
       setLoadingSlots(true);
       const dateStr = selectedDate.toISOString().split("T")[0];
+      const todayStr = new Date().toISOString().split("T")[0];
+      const isToday = dateStr === todayStr;
 
-      console.log(
-        "🔍 Checking availability for court:",
-        selectedCourt._id,
-        "date:",
-        dateStr,
-      );
-
-      // Check if this date is a vacation for the venue
-      let isVacation = false;
+      // Check vacation
       try {
         const vacationResponse = await vacationAPI.checkVacation(
           selectedVenue._id,
           dateStr,
         );
-        isVacation = vacationResponse.data.isVacation || false;
+        if (vacationResponse.data.isVacation) {
+          setSlotStatus({
+            available: new Set(),
+            past: new Set(),
+            booked: new Set(),
+          });
+          setSelectedSlots([]);
+          return;
+        }
       } catch (error) {
-        console.log("Vacation check failed, assuming no vacation");
+        // Continue if vacation check fails
       }
 
-      if (isVacation) {
-        // If it's a vacation, ALL slots are unavailable
-        setAvailableSlots(new Set()); // Empty set = no slots available
-        setSelectedSlot(null);
-        Alert.alert(
-          "Vacation Day",
-          "This venue is closed on this date due to vacation. Please select another date.",
-        );
-        return;
-      }
-
-      let bookedSlots = new Set();
+      // Get booked slots
+      let bookedSlotsSet = new Set();
       try {
         const response = await courtAPI.getAvailableSlots(
           selectedCourt._id,
           dateStr,
         );
         const bookedSlotsData = response.data.slots || [];
-
-        bookedSlots = new Set(
+        bookedSlotsSet = new Set(
           bookedSlotsData.map((slot) => `${slot.startTime} - ${slot.endTime}`),
         );
       } catch (error) {
-        console.log("Error fetching booked slots, assuming none are booked");
+        // Continue if booking fetch fails
       }
 
-      const availableSet = new Set(ALL_TIME_SLOTS);
+      // Calculate current time for today
+      let currentTimeInMinutes = 0;
+      if (isToday) {
+        const now = new Date();
+        currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+      }
 
-      bookedSlots.forEach((slot) => {
-        availableSet.delete(slot);
+      const availableSet = new Set();
+      const pastSlotsSet = new Set();
+      const bookedSlotsSetResult = new Set();
+
+      ALL_TIME_SLOTS.forEach((slot) => {
+        const [startTime] = slot.split(" - ");
+        const [hour, minute] = startTime.split(":").map(Number);
+        const slotStartTimeInMinutes = hour * 60 + minute;
+
+        if (bookedSlotsSet.has(slot)) {
+          bookedSlotsSetResult.add(slot);
+        } else if (isToday && slotStartTimeInMinutes <= currentTimeInMinutes) {
+          pastSlotsSet.add(slot);
+        } else {
+          availableSet.add(slot);
+        }
       });
-      setAvailableSlots(availableSet);
+
+      setSlotStatus({
+        available: availableSet,
+        past: pastSlotsSet,
+        booked: bookedSlotsSetResult,
+      });
+
+      // Clear selected slots that are no longer available
+      const stillAvailable = selectedSlots.filter((slot) =>
+        availableSet.has(slot),
+      );
+      if (stillAvailable.length !== selectedSlots.length) {
+        setSelectedSlots(stillAvailable);
+      }
     } catch (error) {
-      setAvailableSlots(new Set(ALL_TIME_SLOTS));
+      setSlotStatus({
+        available: new Set(ALL_TIME_SLOTS),
+        past: new Set(),
+        booked: new Set(),
+      });
     } finally {
       setLoadingSlots(false);
     }
@@ -215,13 +306,11 @@ const CreateBookingScreen = ({ navigation, route }) => {
     setStep(3);
   };
 
-  const handleDateChange = (event, selectedDate) => {
+  const handleDateChange = async (event, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      // Check if selected date is in the past
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-
       const selectedDay = new Date(selectedDate);
       selectedDay.setHours(0, 0, 0, 0);
 
@@ -234,28 +323,75 @@ const CreateBookingScreen = ({ navigation, route }) => {
       }
 
       setSelectedDate(selectedDate);
-      setSelectedSlot(null);
+      setSelectedSlots([]);
+
+      if (selectedVenue) {
+        try {
+          const vacationResponse = await vacationAPI.checkVacation(
+            selectedVenue._id,
+            selectedDate.toISOString().split("T")[0],
+          );
+
+          if (vacationResponse.data.isVacation) {
+            const vacation = vacationResponse.data.vacation;
+            setVacationInfo(vacation);
+            setSlotStatus({
+              available: new Set(),
+              past: new Set(),
+              booked: new Set(),
+            });
+            Alert.alert(
+              "🏖️ Vacation Day",
+              `This venue is closed on ${selectedDate.toLocaleDateString(
+                "en-US",
+                {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                },
+              )}.\n\nReason: ${vacation?.reason || "Vacation/Closed"}\n\nPlease select another date.`,
+              [{ text: "OK" }],
+            );
+          } else {
+            setVacationInfo(null);
+            fetchAvailableSlots();
+          }
+        } catch (error) {
+          setVacationInfo(null);
+        }
+      }
     }
   };
 
   const handleSlotSelect = (slot) => {
-    if (availableSlots.has(slot)) {
-      setSelectedSlot(slot);
-    } else {
-      Alert.alert("Not Available", "This time slot is already booked.");
+    if (slotStatus.available.has(slot)) {
+      setSelectedSlots((prev) => {
+        if (prev.includes(slot)) {
+          return prev.filter((s) => s !== slot);
+        } else {
+          return [...prev, slot];
+        }
+      });
+    } else if (slotStatus.booked.has(slot)) {
+      Alert.alert(
+        "Not Available",
+        "This time slot is already booked by someone else.",
+      );
+    } else if (slotStatus.past.has(slot)) {
+      Alert.alert("Not Available", "This time slot has already passed.");
     }
   };
 
   const handleProceedToConfirm = () => {
-    if (!selectedSlot) {
-      Alert.alert("Select Time", "Please select a time slot");
+    if (selectedSlots.length === 0) {
+      Alert.alert("Select Time", "Please select at least one time slot");
       return;
     }
     setStep(4);
   };
 
   const handleSubmitBooking = async () => {
-    // Validate required fields
     if (!bookingDetails.name.trim()) {
       Alert.alert("Error", "Please enter your name");
       return;
@@ -265,43 +401,57 @@ const CreateBookingScreen = ({ navigation, route }) => {
       return;
     }
 
+    if (vacationInfo) {
+      Alert.alert(
+        "Cannot Book",
+        "This date is a vacation day. Please select another date.",
+        [{ text: "OK" }],
+      );
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Prepare booking data for your backend API
-      const bookingData = {
-        courtId: selectedCourt._id,
-        date: selectedDate.toISOString().split("T")[0],
-        slot: selectedSlot,
-        // Alternative: if your API expects slots array
-        // slots: [selectedSlot],
-      };
+      // Group consecutive slots
+      const slotGroups = groupConsecutiveSlots(selectedSlots);
 
-      const response = await bookingAPI.createUserBooking(bookingData);
+      // Create a booking for each group
+      const bookingPromises = slotGroups.map((group) => {
+        const timeSlot = formatSlotGroup(group);
+        const totalPrice = calculateGroupPrice(
+          group,
+          selectedCourt.pricePerSlot,
+        );
 
-      // If your API requires payment simulation
-      if (response.data.booking) {
-        // You can optionally call simulatePayment here
-        // await bookingAPI.simulatePayment(response.data.booking._id, bookingDetails.paymentMethod);
-      }
+        const bookingData = {
+          courtId: selectedCourt._id,
+          date: selectedDate.toISOString().split("T")[0],
+          slots: group,
+          totalPrice: totalPrice,
+        };
+
+        return bookingAPI.createUserBooking(bookingData);
+      });
+
+      // Wait for all bookings to complete
+      await Promise.all(bookingPromises);
+
+      const bookingCount = slotGroups.length;
+      const totalSlots = selectedSlots.length;
 
       Alert.alert(
         "Booking Successful!",
-        "Your booking has been confirmed. You can view it in your bookings.",
+        `${bookingCount} booking(s) created for ${totalSlots} total slot(s).\n\nConsecutive slots are combined into single bookings.`,
         [
           {
             text: "View Bookings",
-            onPress: () => {
-              // Navigate to the UserTabs navigator and activate the 'Bookings' tab
-              navigation.navigate("UserTabs", { screen: "Bookings" });
-            },
+            onPress: () =>
+              navigation.navigate("UserTabs", { screen: "Bookings" }),
           },
           {
             text: "Done",
-            onPress: () => {
-              // Navigate to the UserTabs navigator and activate the 'Home' tab
-              navigation.navigate("UserTabs", { screen: "Home" });
-            },
+            onPress: () => navigation.navigate("UserTabs", { screen: "Home" }),
           },
         ],
       );
@@ -317,97 +467,120 @@ const CreateBookingScreen = ({ navigation, route }) => {
     }
   };
 
-  const renderVenueCard = ({ item }) => (
-    <TouchableOpacity
-      style={styles.venueCard}
-      onPress={() => handleVenueSelect(item)}
-    >
-      <View style={styles.venueImageContainer}>
-        {item.images && item.images.length > 0 ? (
-          <Image
-            source={{ uri: `http://localhost:5000/uploads/${item.images[0]}` }}
-            style={styles.venueImage}
-          />
-        ) : (
-          <View style={styles.venueImagePlaceholder}>
-            <Icon icon="venues" size={40} color="#CCCCCC" />
-          </View>
-        )}
-      </View>
-      <View style={styles.venueInfo}>
-        <Text style={styles.venueName}>{item.name}</Text>
-        <Text style={styles.venueLocation}>
-          {item.location?.address || "Location not specified"}
-        </Text>
-        <View style={styles.venueRating}>
-          <Icon icon="star" size={14} color="#FFC107" />
-          <Text style={styles.venueRatingText}>
-            {item.averageRating?.toFixed(1) || "4.0"}
+  const VenueCard = ({ item }) => {
+    const [imageError, setImageError] = useState(false);
+
+    return (
+      <TouchableOpacity
+        style={styles.venueCard}
+        onPress={() => handleVenueSelect(item)}
+      >
+        <View style={styles.venueImageContainer}>
+          {item.images && item.images.length > 0 && !imageError ? (
+            <Image
+              source={{ uri: getImageUrl(item.images[0]) }}
+              style={styles.venueImage}
+              onError={() => setImageError(true)}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.venueImagePlaceholder}>
+              <Icon icon="venues" size={40} color="#CCCCCC" />
+              <Text style={styles.placeholderText}>No Image</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.venueInfo}>
+          <Text style={styles.venueName}>{item.name}</Text>
+          <Text style={styles.venueLocation}>
+            {item.location?.address || "Location not specified"}
           </Text>
+          <View style={styles.venueRating}>
+            <Icon icon="star" size={14} color="#FFC107" />
+            <Text style={styles.venueRatingText}>
+              {item.averageRating?.toFixed(1) || "4.0"}
+            </Text>
+          </View>
         </View>
-      </View>
-      <Icon icon="chevron-right" size={20} color="#757575" />
-    </TouchableOpacity>
-  );
+        <Icon icon="chevron-right" size={20} color="#757575" />
+      </TouchableOpacity>
+    );
+  };
 
-  const renderCourtCard = ({ item }) => (
-    <TouchableOpacity
-      style={[
-        styles.courtCard,
-        selectedCourt?._id === item._id && styles.selectedCourt,
-      ]}
-      onPress={() => handleCourtSelect(item)}
-    >
-      <View style={styles.courtImageContainer}>
-        {item.images && item.images.length > 0 ? (
-          <Image
-            source={{ uri: `http://localhost:5000/uploads/${item.images[0]}` }}
-            style={styles.courtImage}
-          />
-        ) : (
-          <View style={styles.courtImagePlaceholder}>
-            <Icon icon="court" size={30} color="#CCCCCC" />
+  const CourtCard = ({ item }) => {
+    const [imageError, setImageError] = useState(false);
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.courtCard,
+          selectedCourt?._id === item._id && styles.selectedCourt,
+        ]}
+        onPress={() => handleCourtSelect(item)}
+      >
+        <View style={styles.courtImageContainer}>
+          {item.images && item.images.length > 0 && !imageError ? (
+            <Image
+              source={{ uri: getImageUrl(item.images[0]) }}
+              style={styles.courtImage}
+              onError={() => setImageError(true)}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.courtImagePlaceholder}>
+              <Icon icon="court" size={30} color="#CCCCCC" />
+              <Text style={styles.placeholderText}>No Image</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.courtInfo}>
+          <Text style={styles.courtName}>{item.name}</Text>
+          <Text style={styles.courtSport}>{item.sportType}</Text>
+          <Text style={styles.courtPrice}>PKR {item.pricePerSlot}/hour</Text>
+        </View>
+        {selectedCourt?._id === item._id && (
+          <View style={styles.selectedIndicator}>
+            <Icon icon="check" size={16} color="#FFFFFF" />
           </View>
         )}
-      </View>
-      <View style={styles.courtInfo}>
-        <Text style={styles.courtName}>{item.name}</Text>
-        <Text style={styles.courtSport}>{item.sportType}</Text>
-        <Text style={styles.courtPrice}>PKR {item.pricePerSlot}/hour</Text>
-      </View>
-      {selectedCourt?._id === item._id && (
-        <View style={styles.selectedIndicator}>
-          <Icon icon="check" size={16} color="#FFFFFF" />
-        </View>
-      )}
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
-  const renderTimeSlot = ({ item }) => {
-    const isAvailable = availableSlots.has(item);
+  const TimeSlot = ({ item }) => {
+    const isAvailable = slotStatus.available?.has(item) || false;
+    const isPast = slotStatus.past?.has(item) || false;
+    const isBooked = slotStatus.booked?.has(item) || false;
+    const isSelected = selectedSlots.includes(item);
 
     return (
       <TouchableOpacity
         style={[
           styles.timeSlot,
-          selectedSlot === item && styles.selectedTimeSlot,
-          !isAvailable && styles.unavailableTimeSlot,
+          isSelected && styles.selectedTimeSlot,
+          isPast && styles.pastTimeSlot,
+          isBooked && styles.bookedTimeSlot,
         ]}
-        onPress={() => isAvailable && handleSlotSelect(item)}
+        onPress={() => handleSlotSelect(item)}
         disabled={!isAvailable}
       >
         <Text
           style={[
             styles.timeSlotTime,
-            selectedSlot === item && styles.selectedTimeSlotText,
-            !isAvailable && styles.unavailableTimeSlotText,
+            isSelected && styles.selectedTimeSlotText,
+            isPast && styles.pastTimeSlotText,
+            isBooked && styles.bookedTimeSlotText,
           ]}
         >
           {item}
         </Text>
-        {!isAvailable ? (
-          <Text style={styles.unavailableText}>Booked</Text>
-        ) : (
+        {isBooked && (
+          <View style={styles.bookedBadge}>
+            <Text style={styles.bookedBadgeText}>BOOKED</Text>
+          </View>
+        )}
+        {isPast && !isBooked && <Text style={styles.pastText}>Passed</Text>}
+        {isAvailable && (
           <Text style={styles.priceText}>
             PKR {selectedCourt?.pricePerSlot}
           </Text>
@@ -449,16 +622,20 @@ const CreateBookingScreen = ({ navigation, route }) => {
     switch (step) {
       case 1:
         return (
-          <View>
+          <View style={styles.stepContainer}>
             <Text style={styles.stepTitle}>Select Venue</Text>
             {loading ? (
-              <ActivityIndicator size="large" color="#2E7D32" />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#2E7D32" />
+              </View>
             ) : (
               <FlatList
                 data={venues}
-                renderItem={renderVenueCard}
+                renderItem={({ item }) => <VenueCard item={item} />}
                 keyExtractor={(item) => item._id}
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.listContent}
+                style={styles.flatList}
               />
             )}
           </View>
@@ -466,7 +643,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
 
       case 2:
         return (
-          <View>
+          <View style={styles.stepContainer}>
             <View style={styles.selectedInfo}>
               <Text style={styles.selectedLabel}>Selected Venue:</Text>
               <Text style={styles.selectedValue}>{selectedVenue?.name}</Text>
@@ -476,13 +653,17 @@ const CreateBookingScreen = ({ navigation, route }) => {
             </View>
             <Text style={styles.stepTitle}>Select Court</Text>
             {loading ? (
-              <ActivityIndicator size="large" color="#2E7D32" />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#2E7D32" />
+              </View>
             ) : (
               <FlatList
                 data={courts}
-                renderItem={renderCourtCard}
+                renderItem={({ item }) => <CourtCard item={item} />}
                 keyExtractor={(item) => item._id}
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.listContent}
+                style={styles.flatList}
               />
             )}
           </View>
@@ -490,7 +671,10 @@ const CreateBookingScreen = ({ navigation, route }) => {
 
       case 3:
         return (
-          <View>
+          <ScrollView
+            style={styles.stepContainer}
+            showsVerticalScrollIndicator={true}
+          >
             <View style={styles.selectedInfo}>
               <Text style={styles.selectedLabel}>Selected:</Text>
               <Text style={styles.selectedValue}>
@@ -529,23 +713,113 @@ const CreateBookingScreen = ({ navigation, route }) => {
               />
             )}
 
-            <View style={styles.timeSlotsContainer}>
-              <Text style={styles.timeSlotsTitle}>Available Time Slots</Text>
-              {loadingSlots ? (
-                <ActivityIndicator size="small" color="#2E7D32" />
-              ) : (
-                <FlatList
-                  data={ALL_TIME_SLOTS}
-                  renderItem={renderTimeSlot}
-                  keyExtractor={(item) => item}
-                  numColumns={2}
-                  columnWrapperStyle={styles.timeSlotsGrid}
-                  scrollEnabled={false}
+            {vacationInfo && (
+              <View style={styles.vacationNotice}>
+                <Icon icon="umbrella" size={20} color="#FF9800" />
+                <View style={styles.vacationNoticeContent}>
+                  <Text style={styles.vacationNoticeTitle}>Vacation Day</Text>
+                  <Text style={styles.vacationNoticeText}>
+                    {vacationInfo.reason || "Venue closed for vacation"}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.legendContainer}>
+              <View style={styles.legendItem}>
+                <View
+                  style={[
+                    styles.legendDot,
+                    {
+                      backgroundColor: "#FFFFFF",
+                      borderWidth: 1,
+                      borderColor: "#E0E0E0",
+                    },
+                  ]}
                 />
+                <Text style={styles.legendText}>Available</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View
+                  style={[styles.legendDot, { backgroundColor: "#2E7D32" }]}
+                />
+                <Text style={styles.legendText}>Selected</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View
+                  style={[
+                    styles.legendDot,
+                    {
+                      backgroundColor: "#EEEEEE",
+                      borderWidth: 1,
+                      borderColor: "#E0E0E0",
+                    },
+                  ]}
+                />
+                <Text style={styles.legendText}>Passed</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View
+                  style={[
+                    styles.legendDot,
+                    {
+                      backgroundColor: "#FFEBEE",
+                      borderWidth: 1,
+                      borderColor: "#F44336",
+                    },
+                  ]}
+                />
+                <Text style={styles.legendText}>Booked</Text>
+              </View>
+            </View>
+
+            {/* Multi-select info */}
+            <View style={styles.multiSelectInfo}>
+              <Icon icon="info" size={14} color="#2E7D32" />
+              <Text style={styles.multiSelectInfoText}>
+                Tap multiple consecutive slots to book them together
+              </Text>
+            </View>
+
+            <View style={styles.timeSlotsContainer}>
+              <Text style={styles.timeSlotsTitle}>Time Slots</Text>
+              {loadingSlots ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#2E7D32" />
+                </View>
+              ) : (
+                <View style={styles.timeSlotsGrid}>
+                  {ALL_TIME_SLOTS.map((slot) => (
+                    <TimeSlot key={slot} item={slot} />
+                  ))}
+                </View>
               )}
             </View>
 
-            {selectedSlot && (
+            {selectedSlots.length > 0 && (
+              <View style={styles.selectedSummary}>
+                <Text style={styles.selectedSummaryTitle}>
+                  Selected: {selectedSlots.length} slot(s)
+                </Text>
+                <Text style={styles.selectedSummaryText}>
+                  {groupConsecutiveSlots(selectedSlots).map((group, idx) => (
+                    <Text key={idx}>
+                      {formatSlotGroup(group)} ({group.length} hour
+                      {group.length > 1 ? "s" : ""})
+                      {idx < groupConsecutiveSlots(selectedSlots).length - 1
+                        ? "\n"
+                        : ""}
+                    </Text>
+                  ))}
+                </Text>
+                <Text style={styles.selectedSummaryTotal}>
+                  Total: PKR{" "}
+                  {selectedSlots.length * (selectedCourt?.pricePerSlot || 0)}
+                </Text>
+              </View>
+            )}
+
+            {selectedSlots.length > 0 && (
               <TouchableOpacity
                 style={styles.proceedButton}
                 onPress={handleProceedToConfirm}
@@ -553,12 +827,18 @@ const CreateBookingScreen = ({ navigation, route }) => {
                 <Text style={styles.proceedButtonText}>Proceed to Confirm</Text>
               </TouchableOpacity>
             )}
-          </View>
+            <View style={{ height: 20 }} />
+          </ScrollView>
         );
 
       case 4:
+        const slotGroups = groupConsecutiveSlots(selectedSlots);
+
         return (
-          <View>
+          <ScrollView
+            style={styles.stepContainer}
+            showsVerticalScrollIndicator={true}
+          >
             <View style={styles.selectedInfo}>
               <Text style={styles.selectedLabel}>Booking Summary:</Text>
               <TouchableOpacity onPress={() => setStep(3)}>
@@ -588,16 +868,26 @@ const CreateBookingScreen = ({ navigation, route }) => {
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Time:</Text>
-                <Text style={styles.summaryValue}>{selectedSlot}</Text>
+                <View style={styles.summaryValueContainer}>
+                  {slotGroups.map((group, index) => (
+                    <Text key={index} style={styles.summaryValue}>
+                      {formatSlotGroup(group)} ({group.length} hour
+                      {group.length > 1 ? "s" : ""})
+                    </Text>
+                  ))}
+                </View>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Duration:</Text>
-                <Text style={styles.summaryValue}>1 hour</Text>
+                <Text style={styles.summaryLabel}>Total Slots:</Text>
+                <Text style={styles.summaryValue}>
+                  {selectedSlots.length} hour(s)
+                </Text>
               </View>
               <View style={[styles.summaryRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total Amount:</Text>
                 <Text style={styles.totalValue}>
-                  PKR {selectedCourt?.pricePerSlot}
+                  PKR{" "}
+                  {selectedSlots.length * (selectedCourt?.pricePerSlot || 0)}
                 </Text>
               </View>
             </View>
@@ -704,7 +994,8 @@ const CreateBookingScreen = ({ navigation, route }) => {
                 <Text style={styles.submitButtonText}>Confirm Booking</Text>
               )}
             </TouchableOpacity>
-          </View>
+            <View style={{ height: 20 }} />
+          </ScrollView>
         );
     }
   };
@@ -712,13 +1003,10 @@ const CreateBookingScreen = ({ navigation, route }) => {
   return (
     <View style={styles.container}>
       <CustomHeader showBack title="Create Booking" />
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-      >
+      <View style={styles.content}>
         {renderStepIndicator()}
         {renderStepContent()}
-      </ScrollView>
+      </View>
     </View>
   );
 };
@@ -729,14 +1017,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F5F5",
   },
   content: {
+    flex: 1,
     padding: 16,
-    paddingBottom: 30,
+  },
+  stepContainer: {
+    flex: 1,
+  },
+  flatList: {
+    flex: 1,
+  },
+  listContent: {
+    paddingBottom: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 200,
   },
   stepIndicator: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 30,
+    marginBottom: 20,
     paddingHorizontal: 20,
   },
   stepCircle: {
@@ -827,6 +1130,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F0F0",
     justifyContent: "center",
     alignItems: "center",
+  },
+  placeholderText: {
+    fontSize: 10,
+    color: "#999999",
+    marginTop: 4,
+    textAlign: "center",
   },
   venueInfo: {
     flex: 1,
@@ -922,6 +1231,69 @@ const styles = StyleSheet.create({
     color: "#212121",
     marginLeft: 8,
   },
+  vacationNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF3E0",
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: "#FFE0B2",
+  },
+  vacationNoticeContent: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  vacationNoticeTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#FF9800",
+  },
+  vacationNoticeText: {
+    fontSize: 12,
+    color: "#FF9800",
+    marginTop: 2,
+  },
+  legendContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  legendDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 6,
+  },
+  legendText: {
+    fontSize: 12,
+    color: "#757575",
+  },
+  multiSelectInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E8F5E9",
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  multiSelectInfoText: {
+    fontSize: 12,
+    color: "#2E7D32",
+    marginLeft: 6,
+    flex: 1,
+  },
   timeSlotsContainer: {
     marginTop: 8,
   },
@@ -932,15 +1304,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   timeSlotsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 8,
   },
   timeSlot: {
-    flex: 1,
+    width: "48%",
     backgroundColor: "#FFFFFF",
     padding: 10,
     borderRadius: 6,
-    margin: 4,
+    marginBottom: 8,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#E0E0E0",
@@ -949,9 +1322,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#2E7D32",
     borderColor: "#2E7D32",
   },
-  unavailableTimeSlot: {
-    backgroundColor: "#F5F5F5",
-    opacity: 0.5,
+  pastTimeSlot: {
+    backgroundColor: "#EEEEEE",
+    borderColor: "#E0E0E0",
+  },
+  bookedTimeSlot: {
+    backgroundColor: "#FFEBEE",
+    borderColor: "#F44336",
   },
   timeSlotTime: {
     fontSize: 12,
@@ -961,8 +1338,12 @@ const styles = StyleSheet.create({
   selectedTimeSlotText: {
     color: "#FFFFFF",
   },
-  unavailableTimeSlotText: {
+  pastTimeSlotText: {
     color: "#999999",
+    textDecorationLine: "line-through",
+  },
+  bookedTimeSlotText: {
+    color: "#F44336",
     textDecorationLine: "line-through",
   },
   priceText: {
@@ -970,10 +1351,45 @@ const styles = StyleSheet.create({
     color: "#2E7D32",
     marginTop: 2,
   },
-  unavailableText: {
+  pastText: {
     fontSize: 10,
-    color: "#F44336",
+    color: "#999999",
     marginTop: 2,
+  },
+  bookedBadge: {
+    backgroundColor: "#F44336",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  bookedBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 8,
+    fontWeight: "bold",
+  },
+  selectedSummary: {
+    backgroundColor: "#E8F5E9",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  selectedSummaryTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2E7D32",
+    marginBottom: 6,
+  },
+  selectedSummaryText: {
+    fontSize: 12,
+    color: "#212121",
+    marginBottom: 4,
+  },
+  selectedSummaryTotal: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2E7D32",
+    marginTop: 6,
   },
   proceedButton: {
     backgroundColor: "#2E7D32",
@@ -1006,6 +1422,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#212121",
     fontWeight: "500",
+  },
+  summaryValueContainer: {
+    flex: 1,
+    alignItems: "flex-end",
   },
   totalRow: {
     marginTop: 8,

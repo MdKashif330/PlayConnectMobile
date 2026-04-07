@@ -10,37 +10,55 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  Image,
   Alert,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import CustomHeader from "../../components/CustomHeader";
 import Icon from "../../components/Icon";
-import api from "../../services/api";
+import { api } from "../../services/api";
+import { useAuth } from "../../contexts/AuthContext";
 
 const ChatbotScreen = ({ navigation }) => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState([
     {
       id: "1",
-      text: "👋 Hello! I'm your AI assistant for PlayConnect. I can help you find venues, check availability, make bookings, or answer any questions. How can I help you today?",
+      text: "🏸 Welcome to PlayConnect Assistant!\n\nI can help you find available time slots at nearby venues.\n\nJust tell me:\n• Time slot (e.g., '6pm to 7pm')\n• Search radius (e.g., 'within 10km')\n\nExample: 'Find venues with 6pm to 7pm time slot within 10km'",
       sender: "bot",
       timestamp: new Date().toLocaleTimeString(),
     },
   ]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
+  const [suggestions, setSuggestions] = useState([
+    "6pm to 7pm within 10km",
+    "8pm to 9pm within 5km",
+    "7pm to 8pm near me",
+    "Badminton courts at 7pm within 5km",
+  ]);
   const flatListRef = useRef();
 
-  // Common suggestions for users
+  // Send user location to backend
   useEffect(() => {
-    setSuggestions([
-      "Find football venues near me",
-      "Badminton courts available now",
-      "Book a tennis court for tomorrow",
-      "What events are coming up?",
-      "Show me venues with parking",
-      "Cheapest courts in my area",
-    ]);
+    const sendLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const location = await Location.getCurrentPositionAsync({});
+          const { latitude, longitude } = location.coords;
+
+          console.log("📍 Location obtained:", latitude, longitude);
+
+          // Send location to backend
+          await api.post("/users/location", { latitude, longitude });
+          console.log("✅ Location sent to backend");
+        }
+      } catch (error) {
+        console.log("Location error:", error);
+      }
+    };
+    sendLocation();
   }, []);
 
   const handleSend = async () => {
@@ -58,14 +76,52 @@ const ChatbotScreen = ({ navigation }) => {
     setLoading(true);
 
     try {
-      // Process with AI
-      await processWithAI(inputText);
+      // Get current location
+      let latitude = null;
+      let longitude = null;
+
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const location = await Location.getCurrentPositionAsync({});
+          latitude = location.coords.latitude;
+          longitude = location.coords.longitude;
+          console.log("📍 Got location:", latitude, longitude);
+        }
+      } catch (locError) {
+        console.log("Location error:", locError);
+      }
+
+      console.log("📤 Sending to AI:", inputText);
+
+      const response = await api.post("/chatbot/query", {
+        message: inputText,
+        latitude: latitude,
+        longitude: longitude,
+      });
+
+      console.log("📥 AI Response:", response.data);
+
+      const botMessage = {
+        id: (Date.now() + 1).toString(),
+        text: response.data.text,
+        sender: "bot",
+        timestamp: new Date().toLocaleTimeString(),
+        venues: response.data.venues,
+        type: response.data.showVenues ? "venues" : "text",
+      };
+
+      setMessages((prev) => [...prev, botMessage]);
+
+      if (response.data.suggestions) {
+        setSuggestions(response.data.suggestions);
+      }
     } catch (error) {
-      console.error("AI Processing Error:", error);
+      console.error("Chatbot Error:", error);
 
       const errorMessage = {
         id: (Date.now() + 1).toString(),
-        text: "I'm having trouble connecting to my AI service. Please try again or check your internet connection.",
+        text: "Sorry, I'm having trouble. Please try again with something like: '6pm to 7pm within 10km'",
         sender: "bot",
         timestamp: new Date().toLocaleTimeString(),
         isError: true,
@@ -76,237 +132,109 @@ const ChatbotScreen = ({ navigation }) => {
     }
   };
 
-  const processWithAI = async (userInput) => {
-    try {
-      // Call your backend AI endpoint
-      const response = await api.post("/chatbot/query", {
-        message: userInput,
-        context: {
-          userId: "current-user-id", // Get from auth context
-          previousMessages: messages.slice(-5), // Send last 5 messages for context
-        },
-      });
-
-      const aiResponse = response.data;
-
-      // Check if AI wants to show venues
-      if (aiResponse.showVenues) {
-        const venuesMessage = {
-          id: (Date.now() + 1).toString(),
-          text: aiResponse.text,
-          sender: "bot",
-          timestamp: new Date().toLocaleTimeString(),
-          venues: aiResponse.venues,
-          type: "venues",
-        };
-        setMessages((prev) => [...prev, venuesMessage]);
-      }
-      // Check if AI wants to show events
-      else if (aiResponse.showEvents) {
-        const eventsMessage = {
-          id: (Date.now() + 1).toString(),
-          text: aiResponse.text,
-          sender: "bot",
-          timestamp: new Date().toLocaleTimeString(),
-          events: aiResponse.events,
-          type: "events",
-        };
-        setMessages((prev) => [...prev, eventsMessage]);
-      }
-      // Regular text response
-      else {
-        const botMessage = {
-          id: (Date.now() + 1).toString(),
-          text:
-            aiResponse.text ||
-            "I understand you're looking for help. Could you please provide more details?",
-          sender: "bot",
-          timestamp: new Date().toLocaleTimeString(),
-          actions: aiResponse.actions || [],
-        };
-        setMessages((prev) => [...prev, botMessage]);
-      }
-
-      // Update suggestions based on context
-      if (aiResponse.suggestions) {
-        setSuggestions(aiResponse.suggestions);
-      }
-    } catch (error) {
-      console.error("AI API Error:", error);
-
-      // Fallback to rule-based responses if AI fails
-      fallbackResponse(userInput);
-    }
-  };
-
-  const fallbackResponse = (userInput) => {
-    const input = userInput.toLowerCase();
-    let response = {
-      text: "I can help you find venues, check availability, or make bookings. What would you like to do?",
-    };
-
-    if (input.includes("football") || input.includes("soccer")) {
-      response = {
-        text: "I found several football venues near you. Here are some options:",
-        showVenues: true,
-        venues: mockFootballVenues,
-      };
-    } else if (input.includes("badminton")) {
-      response = {
-        text: "Here are the best badminton courts available:",
-        showVenues: true,
-        venues: mockBadmintonVenues,
-      };
-    } else if (input.includes("event") || input.includes("tournament")) {
-      response = {
-        text: "Here are upcoming events you might be interested in:",
-        showEvents: true,
-        events: mockEvents,
-      };
-    } else if (input.includes("book") || input.includes("reserve")) {
-      response = {
-        text: "I can help you make a booking. Which venue would you like to book? You can also use the + button to create a booking.",
-        actions: ["create_booking"],
-      };
-    } else if (input.includes("parking") || input.includes("facilities")) {
-      response = {
-        text: "Venues with parking and other facilities:",
-        showVenues: true,
-        venues: mockVenuesWithFacilities,
-      };
-    }
-
-    const botMessage = {
-      id: (Date.now() + 1).toString(),
-      text: response.text,
-      sender: "bot",
-      timestamp: new Date().toLocaleTimeString(),
-      venues: response.showVenues ? response.venues : null,
-      events: response.showEvents ? response.events : null,
-      type: response.showVenues
-        ? "venues"
-        : response.showEvents
-          ? "events"
-          : "text",
-      actions: response.actions || [],
-    };
-
-    setMessages((prev) => [...prev, botMessage]);
-  };
-
   const handleSuggestionPress = (suggestion) => {
     setInputText(suggestion);
-    // Auto-send after a short delay
     setTimeout(() => handleSend(), 100);
   };
 
-  const renderVenueCard = (venue) => (
-    <TouchableOpacity
-      key={venue.id}
-      style={styles.venueCard}
-      onPress={() => navigation.navigate("VenueDetail", { venueId: venue.id })}
-    >
-      <View style={styles.venueImagePlaceholder}>
-        <Icon icon="venues" size={30} color="#CCCCCC" />
-      </View>
-      <View style={styles.venueCardInfo}>
-        <Text style={styles.venueCardName}>{venue.name}</Text>
-        <Text style={styles.venueCardDistance}>{venue.distance}</Text>
-        <View style={styles.venueCardRating}>
-          <Icon icon="star" size={12} color="#FFC107" />
-          <Text style={styles.venueCardRatingText}>{venue.rating}</Text>
-        </View>
-        {venue.price && (
-          <Text style={styles.venueCardPrice}>₹{venue.price}/hr</Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+  const handleVenueSelect = (venue) => {
+    navigation.navigate("VenueDetail", { venueId: venue.venueId });
+  };
 
-  const renderEventCard = (event) => (
-    <TouchableOpacity
-      key={event.id}
-      style={styles.eventCard}
-      onPress={() => navigation.navigate("EventDetail", { eventId: event.id })}
-    >
-      <View style={styles.eventImagePlaceholder}>
-        <Icon icon="events" size={30} color="#CCCCCC" />
-      </View>
-      <View style={styles.eventCardInfo}>
-        <Text style={styles.eventCardName}>{event.name}</Text>
-        <Text style={styles.eventCardDate}>{event.date}</Text>
-        <Text style={styles.eventCardVenue}>{event.venue}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const handleBookNow = (venue, courtId, timeSlot) => {
+    navigation.navigate("CreateBooking", {
+      venueId: venue.venueId,
+      courtId: courtId,
+      slot: timeSlot,
+    });
+  };
 
-  const renderActions = (actions) => {
-    if (!actions || actions.length === 0) return null;
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith("http")) return imagePath;
+    return `http://localhost:5000/uploads/${imagePath}`;
+  };
+
+  const VenueCard = ({ venue, index }) => {
+    const [imageError, setImageError] = useState(false);
 
     return (
-      <View style={styles.actionButtons}>
-        {actions.includes("create_booking") && (
+      <TouchableOpacity
+        key={venue.venueId + index}
+        style={styles.venueCard}
+        onPress={() => handleVenueSelect(venue)}
+      >
+        <View style={styles.venueImageContainer}>
+          {venue.images && venue.images.length > 0 && !imageError ? (
+            <Image
+              source={{ uri: getImageUrl(venue.images[0]) }}
+              style={styles.venueImage}
+              onError={() => setImageError(true)}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.venueImagePlaceholder}>
+              <Icon icon="venues" size={30} color="#CCCCCC" />
+              <Text style={styles.imagePlaceholderText}>No Image</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.venueCardInfo}>
+          <Text style={styles.venueCardName}>{venue.venueName}</Text>
+          <Text style={styles.venueCardSport}>{venue.sportType}</Text>
+          <View style={styles.venueCardDetails}>
+            <View style={styles.venueCardDetail}>
+              <Icon icon="time" size={12} color="#757575" />
+              <Text style={styles.venueCardDetailText}>{venue.timeSlot}</Text>
+            </View>
+            {venue.distance && (
+              <View style={styles.venueCardDetail}>
+                <Icon icon="location" size={12} color="#757575" />
+                <Text style={styles.venueCardDetailText}>
+                  {venue.distance} km away
+                </Text>
+              </View>
+            )}
+            <View style={styles.venueCardDetail}>
+              <Icon icon="price" size={12} color="#757575" />
+              <Text style={styles.venueCardPrice}>₹{venue.price}/hour</Text>
+            </View>
+          </View>
           <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate("CreateBooking")}
+            style={styles.bookButton}
+            onPress={() => handleBookNow(venue, venue.courtId, venue.timeSlot)}
           >
-            <Icon icon="add" size={16} color="#FFFFFF" />
-            <Text style={styles.actionButtonText}>Create Booking</Text>
+            <Text style={styles.bookButtonText}>Book Now</Text>
           </TouchableOpacity>
-        )}
-        {actions.includes("view_venues") && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.secondaryButton]}
-            onPress={() => navigation.navigate("Home")}
-          >
-            <Icon icon="venues" size={16} color="#2E7D32" />
-            <Text style={[styles.actionButtonText, styles.secondaryButtonText]}>
-              Browse Venues
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      </TouchableOpacity>
     );
   };
 
   const renderMessage = ({ item }) => {
-    // Render venue cards
-    if (item.type === "venues" && item.venues) {
+    // Safety check for empty item
+    if (!item) return null;
+
+    if (item.type === "venues" && item.venues && item.venues.length > 0) {
       return (
         <View style={styles.botMessageContainer}>
           <View style={styles.botAvatar}>
             <Icon icon="chat" size={20} color="#FFFFFF" />
           </View>
           <View style={styles.venuesContainer}>
-            <Text style={styles.venuesTitle}>{item.text}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {item.venues.map((venue) => renderVenueCard(venue))}
-            </ScrollView>
-            {renderActions(item.actions)}
+            <Text style={styles.venuesTitle}>{item.text || ""}</Text>
+            {item.venues.map((venue, index) => (
+              <VenueCard
+                key={venue.venueId + index}
+                venue={venue}
+                index={index}
+              />
+            ))}
           </View>
         </View>
       );
     }
 
-    // Render event cards
-    if (item.type === "events" && item.events) {
-      return (
-        <View style={styles.botMessageContainer}>
-          <View style={styles.botAvatar}>
-            <Icon icon="chat" size={20} color="#FFFFFF" />
-          </View>
-          <View style={styles.venuesContainer}>
-            <Text style={styles.venuesTitle}>{item.text}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {item.events.map((event) => renderEventCard(event))}
-            </ScrollView>
-            {renderActions(item.actions)}
-          </View>
-        </View>
-      );
-    }
-
-    // Regular text message
     return (
       <View
         style={[
@@ -336,10 +264,9 @@ const ChatbotScreen = ({ navigation }) => {
               item.isError && styles.errorText,
             ]}
           >
-            {item.text}
+            {item.text || ""}
           </Text>
-          <Text style={styles.timestamp}>{item.timestamp}</Text>
-          {item.sender === "bot" && renderActions(item.actions)}
+          <Text style={styles.timestamp}>{item.timestamp || ""}</Text>
         </View>
       </View>
     );
@@ -363,10 +290,9 @@ const ChatbotScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Suggestions Chips */}
-      {suggestions.length > 0 && messages.length < 3 && (
+      {suggestions.length > 0 && messages.length < 4 && (
         <View style={styles.suggestionsContainer}>
-          <Text style={styles.suggestionsTitle}>Try asking:</Text>
+          <Text style={styles.suggestionsTitle}>Quick suggestions:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {suggestions.map((suggestion, index) => (
               <TouchableOpacity
@@ -384,11 +310,11 @@ const ChatbotScreen = ({ navigation }) => {
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Ask me anything about venues, bookings, events..."
+          placeholder="e.g., '6pm to 7pm within 10km'"
           value={inputText}
           onChangeText={setInputText}
           multiline
-          maxLength={500}
+          maxLength={200}
         />
         <TouchableOpacity
           style={[
@@ -401,93 +327,13 @@ const ChatbotScreen = ({ navigation }) => {
           {loading ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <Ionicons name="send" size={20} color="#FFFFFF" />
+            <Icon icon="send" size={20} color="#FFFFFF" />
           )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 };
-
-// Mock data for fallback responses
-const mockFootballVenues = [
-  {
-    id: 1,
-    name: "City Football Ground",
-    distance: "2.5 km",
-    rating: 4.5,
-    price: "₹800",
-  },
-  {
-    id: 2,
-    name: "Green Field Arena",
-    distance: "3.8 km",
-    rating: 4.3,
-    price: "₹600",
-  },
-  {
-    id: 3,
-    name: "Sports Complex Football",
-    distance: "5.2 km",
-    rating: 4.7,
-    price: "₹1000",
-  },
-];
-
-const mockBadmintonVenues = [
-  {
-    id: 4,
-    name: "Elite Badminton Arena",
-    distance: "1.5 km",
-    rating: 4.8,
-    price: "₹400",
-  },
-  {
-    id: 5,
-    name: "Smash Badminton Court",
-    distance: "3.0 km",
-    rating: 4.4,
-    price: "₹350",
-  },
-];
-
-const mockVenuesWithFacilities = [
-  {
-    id: 6,
-    name: "Grand Sports Hub",
-    distance: "4.0 km",
-    rating: 4.6,
-    price: "₹1200",
-  },
-  {
-    id: 7,
-    name: "Elite Sports Village",
-    distance: "6.5 km",
-    rating: 4.9,
-    price: "₹1500",
-  },
-];
-
-const mockEvents = [
-  {
-    id: 1,
-    name: "Summer Football Tournament",
-    date: "15 Jul 2024",
-    venue: "City Football Ground",
-  },
-  {
-    id: 2,
-    name: "Badminton Championship",
-    date: "20 Jul 2024",
-    venue: "Elite Badminton Arena",
-  },
-  {
-    id: 3,
-    name: "Tennis Open 2024",
-    date: "25 Jul 2024",
-    venue: "Tennis World",
-  },
-];
 
 const styles = StyleSheet.create({
   container: {
@@ -624,103 +470,80 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   venueCard: {
-    width: 160,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    marginRight: 10,
+    marginBottom: 12,
     overflow: "hidden",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  venueImageContainer: {
+    height: 100,
+    backgroundColor: "#F0F0F0",
+  },
+  venueImage: {
+    width: "100%",
+    height: "100%",
   },
   venueImagePlaceholder: {
-    height: 90,
-    backgroundColor: "#E0E0E0",
+    height: 100,
+    backgroundColor: "#F0F0F0",
     justifyContent: "center",
     alignItems: "center",
   },
+  imagePlaceholderText: {
+    fontSize: 10,
+    color: "#999999",
+    marginTop: 4,
+    textAlign: "center",
+  },
   venueCardInfo: {
-    padding: 10,
+    padding: 12,
   },
   venueCardName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "600",
     color: "#212121",
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  venueCardDistance: {
+  venueCardSport: {
     fontSize: 12,
     color: "#757575",
-    marginBottom: 2,
+    marginBottom: 8,
+    textTransform: "capitalize",
   },
-  venueCardRating: {
+  venueCardDetails: {
+    marginBottom: 8,
+  },
+  venueCardDetail: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  venueCardRatingText: {
+  venueCardDetailText: {
     fontSize: 12,
     color: "#757575",
-    marginLeft: 4,
+    marginLeft: 6,
   },
   venueCardPrice: {
     fontSize: 12,
     fontWeight: "600",
     color: "#2E7D32",
+    marginLeft: 6,
   },
-  eventCard: {
-    width: 160,
-    backgroundColor: "#F5F5F5",
-    borderRadius: 12,
-    marginRight: 10,
-    overflow: "hidden",
-  },
-  eventImagePlaceholder: {
-    height: 80,
-    backgroundColor: "#E0E0E0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  eventCardInfo: {
-    padding: 10,
-  },
-  eventCardName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#212121",
-    marginBottom: 2,
-  },
-  eventCardDate: {
-    fontSize: 12,
-    color: "#757575",
-    marginBottom: 2,
-  },
-  eventCardVenue: {
-    fontSize: 12,
-    color: "#757575",
-  },
-  actionButtons: {
-    flexDirection: "row",
-    marginTop: 12,
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
+  bookButton: {
     backgroundColor: "#2E7D32",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: "center",
   },
-  secondaryButton: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#2E7D32",
-  },
-  actionButtonText: {
-    fontSize: 12,
+  bookButtonText: {
     color: "#FFFFFF",
-    marginLeft: 4,
-  },
-  secondaryButtonText: {
-    color: "#2E7D32",
+    fontSize: 12,
+    fontWeight: "500",
   },
 });
 

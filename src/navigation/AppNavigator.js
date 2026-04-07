@@ -338,6 +338,60 @@ export default function AppNavigator() {
                 headerBackTitle: "Back",
               }}
             />
+            <Stack.Screen
+              name="EditProfile"
+              component={EditProfile}
+              options={{
+                headerShown: true,
+                title: "Edit Profile",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="ChangePassword"
+              component={ChangePassword}
+              options={{
+                headerShown: true,
+                title: "Change Password",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="Language"
+              component={Language}
+              options={{
+                headerShown: true,
+                title: "Language",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="AppSettings"
+              component={AppSettings}
+              options={{
+                headerShown: true,
+                title: "Settings",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="AboutUs"
+              component={AboutUs}
+              options={{
+                headerShown: true,
+                title: "About Us",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="FAQs"
+              component={FAQs}
+              options={{
+                headerShown: true,
+                title: "FAQs",
+                headerBackTitle: "Back",
+              }}
+            />
           </>
         ) : userRole === "manager" ? (
           // Manager Stack (unchanged)

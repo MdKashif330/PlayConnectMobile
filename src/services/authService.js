@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
-const API_URL = "http://192.168.0.110:5000/api"; // Change to your backend IP
+const API_URL = "http://192.168.0.119:5000/api"; // Change to your backend IP
 
 const api = axios.create({
   baseURL: API_URL,
@@ -44,9 +44,11 @@ export const login = async (email, password) => {
   try {
     const response = await api.post("/auth/login", { email, password });
     const { token, user } = response.data;
+
     await AsyncStorage.setItem("token", token);
     await AsyncStorage.setItem("user", JSON.stringify(user));
-    return { success: true, user };
+
+    return { success: true, user, token };
   } catch (error) {
     const message =
       error.response && error.response.data && error.response.data.message
@@ -55,7 +57,6 @@ export const login = async (email, password) => {
     return { success: false, message };
   }
 };
-
 export const register = async (userData) => {
   try {
     const response = await api.post("/auth/register", userData);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,34 +10,34 @@ import {
   RefreshControl,
   Alert,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import CustomHeader from "../../components/CustomHeader";
 import Icon from "../../components/Icon";
-import api from "../../services/api";
+import { userAPI } from "../../services/api";
+import { useAuth } from "../../contexts/AuthContext";
 
 const FavoritesScreen = ({ navigation }) => {
+  const { user } = useAuth();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [imageErrors, setImageErrors] = useState({});
 
-  useEffect(() => {
-    fetchFavorites();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchFavorites();
+    }, []),
+  );
 
   const fetchFavorites = async () => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await api.get('/user/favorites');
-      // setFavorites(response.data);
-
-      // Mock data for now
-      setTimeout(() => {
-        setFavorites(mockFavorites);
-        setLoading(false);
-        setRefreshing(false);
-      }, 1000);
+      setLoading(true);
+      const response = await userAPI.getFavorites();
+      setFavorites(response.data || []);
     } catch (error) {
       console.error("Error fetching favorites:", error);
+      Alert.alert("Error", "Failed to load favorites");
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -48,7 +48,7 @@ const FavoritesScreen = ({ navigation }) => {
     fetchFavorites();
   };
 
-  const removeFromFavorites = (venueId, venueName) => {
+  const removeFromFavorites = async (venueId, venueName) => {
     Alert.alert(
       "Remove from Favorites",
       `Are you sure you want to remove ${venueName} from your favorites?`,
@@ -59,12 +59,15 @@ const FavoritesScreen = ({ navigation }) => {
         },
         {
           text: "Remove",
-          onPress: () => {
-            // TODO: Call API to remove from favorites
-            // await api.delete(`/user/favorites/${venueId}`);
-
-            // Update local state
-            setFavorites(favorites.filter((item) => item.id !== venueId));
+          onPress: async () => {
+            try {
+              await userAPI.removeFavorite(venueId);
+              setFavorites(favorites.filter((item) => item._id !== venueId));
+              Alert.alert("Success", `${venueName} removed from favorites`);
+            } catch (error) {
+              console.error("Error removing favorite:", error);
+              Alert.alert("Error", "Failed to remove from favorites");
+            }
           },
           style: "destructive",
         },
@@ -72,64 +75,106 @@ const FavoritesScreen = ({ navigation }) => {
     );
   };
 
-  const renderFavoriteCard = ({ item }) => (
-    <TouchableOpacity
-      style={styles.favoriteCard}
-      onPress={() => navigation.navigate("VenueDetail", { venueId: item.id })}
-      activeOpacity={0.9}
-    >
-      <View style={styles.imageContainer}>
-        {item.image ? (
-          <Image source={{ uri: item.image }} style={styles.venueImage} />
-        ) : (
-          <View style={styles.imagePlaceholder}>
-            <Icon icon="venues" size={40} color="#CCCCCC" />
-          </View>
-        )}
-        <View style={styles.ratingBadge}>
-          <Icon icon="star" size={12} color="#FFC107" />
-          <Text style={styles.ratingText}>{item.rating}</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.favoriteButton}
-          onPress={() => removeFromFavorites(item.id, item.name)}
-        >
-          <Icon icon="favorite-filled" size={20} color="#FF4081" />
-        </TouchableOpacity>
-      </View>
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith("http")) return imagePath;
+    return `http://localhost:5000/uploads/${imagePath}`;
+  };
 
-      <View style={styles.venueInfo}>
-        <Text style={styles.venueName}>{item.name}</Text>
+  const handleImageError = (venueId) => {
+    setImageErrors((prev) => ({ ...prev, [venueId]: true }));
+  };
 
-        <View style={styles.locationContainer}>
-          <Icon icon="location" size={14} color="#757575" />
-          <Text style={styles.locationText}>{item.location}</Text>
-        </View>
+  const renderFavoriteCard = ({ item }) => {
+    const hasImageError = imageErrors[item._id];
 
-        <View style={styles.detailsContainer}>
-          <View style={styles.detailItem}>
-            <Icon icon="sports" size={14} color="#757575" />
-            <Text style={styles.detailText}>{item.sports} sports</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <Icon icon="price" size={14} color="#757575" />
-            <Text style={styles.detailText}>₹{item.price}/hr</Text>
-          </View>
-        </View>
-
-        <View style={styles.facilitiesContainer}>
-          {item.facilities?.slice(0, 3).map((facility, index) => (
-            <View key={index} style={styles.facilityTag}>
-              <Text style={styles.facilityText}>{facility}</Text>
+    return (
+      <TouchableOpacity
+        style={styles.favoriteCard}
+        onPress={() =>
+          navigation.navigate("VenueDetail", { venueId: item._id })
+        }
+        activeOpacity={0.9}
+      >
+        <View style={styles.imageContainer}>
+          {item.images && item.images.length > 0 && !hasImageError ? (
+            <Image
+              source={{ uri: getImageUrl(item.images[0]) }}
+              style={styles.venueImage}
+              onError={() => handleImageError(item._id)}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Icon icon="venues" size={40} color="#CCCCCC" />
+              <Text style={styles.placeholderText}>No Image</Text>
             </View>
-          ))}
-          {item.facilities?.length > 3 && (
-            <Text style={styles.moreText}>+{item.facilities.length - 3}</Text>
+          )}
+          <View style={styles.ratingBadge}>
+            <Icon icon="star" size={12} color="#FFC107" />
+            <Text style={styles.ratingText}>
+              {item.averageRating?.toFixed(1) || "4.0"}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={() => removeFromFavorites(item._id, item.name)}
+          >
+            <Icon icon="favorite-filled" size={20} color="#FF4081" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.venueInfo}>
+          <Text style={styles.venueName}>{item.name}</Text>
+
+          <View style={styles.locationContainer}>
+            <Icon icon="location" size={14} color="#757575" />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {item.location?.address || "Location not specified"}
+            </Text>
+          </View>
+
+          <View style={styles.detailsContainer}>
+            <View style={styles.detailItem}>
+              <Icon icon="sports" size={14} color="#757575" />
+              <Text style={styles.detailText}>
+                {item.courtCount || 0} courts
+              </Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Icon icon="price" size={14} color="#757575" />
+              <Text style={styles.detailText}>₹{item.priceFrom || 0}/hr</Text>
+            </View>
+          </View>
+
+          {item.facilities && (
+            <View style={styles.facilitiesContainer}>
+              {item.facilities.lights && (
+                <View style={styles.facilityTag}>
+                  <Text style={styles.facilityText}>Floodlights</Text>
+                </View>
+              )}
+              {item.facilities.parking && (
+                <View style={styles.facilityTag}>
+                  <Text style={styles.facilityText}>Parking</Text>
+                </View>
+              )}
+              {item.facilities.cafeteria && (
+                <View style={styles.facilityTag}>
+                  <Text style={styles.facilityText}>Cafeteria</Text>
+                </View>
+              )}
+              {item.facilities.coaching && (
+                <View style={styles.facilityTag}>
+                  <Text style={styles.facilityText}>Coaching</Text>
+                </View>
+              )}
+            </View>
           )}
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -143,7 +188,7 @@ const FavoritesScreen = ({ navigation }) => {
       </Text>
       <TouchableOpacity
         style={styles.browseButton}
-        onPress={() => navigation.navigate("Home")}
+        onPress={() => navigation.navigate("UserTabs", { screen: "Home" })}
       >
         <Text style={styles.browseButtonText}>Browse Venues</Text>
       </TouchableOpacity>
@@ -167,7 +212,7 @@ const FavoritesScreen = ({ navigation }) => {
         <FlatList
           data={favorites}
           renderItem={renderFavoriteCard}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -180,79 +225,6 @@ const FavoritesScreen = ({ navigation }) => {
     </View>
   );
 };
-
-// Mock data
-const mockFavorites = [
-  {
-    id: 1,
-    name: "Sports Complex A",
-    location: "Downtown, City Center",
-    rating: 4.5,
-    price: "500",
-    sports: 5,
-    image: null,
-    facilities: [
-      "Parking",
-      "Floodlights",
-      "Changing Rooms",
-      "Cafeteria",
-      "Equipment Rental",
-    ],
-  },
-  {
-    id: 2,
-    name: "Elite Badminton Arena",
-    location: "North Side, Sports District",
-    rating: 4.8,
-    price: "400",
-    sports: 2,
-    image: null,
-    facilities: ["Parking", "AC Courts", "Professional Flooring", "Coaching"],
-  },
-  {
-    id: 3,
-    name: "City Football Ground",
-    location: "East End, Riverside",
-    rating: 4.2,
-    price: "800",
-    sports: 1,
-    image: null,
-    facilities: ["Floodlights", "Parking", "Turf", "Spectator Seating"],
-  },
-  {
-    id: 4,
-    name: "Tennis World",
-    location: "West Side, Sports Hub",
-    rating: 4.6,
-    price: "600",
-    sports: 1,
-    image: null,
-    facilities: [
-      "Clay Courts",
-      "Hard Courts",
-      "Coaching",
-      "Pro Shop",
-      "Parking",
-    ],
-  },
-  {
-    id: 5,
-    name: "Grand Sports Hub",
-    location: "Central District",
-    rating: 4.7,
-    price: "1000",
-    sports: 8,
-    image: null,
-    facilities: [
-      "Parking",
-      "Cafeteria",
-      "Gym",
-      "Swimming Pool",
-      "Spa",
-      "Changing Rooms",
-    ],
-  },
-];
 
 const styles = StyleSheet.create({
   container: {
@@ -296,6 +268,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F0F0",
     justifyContent: "center",
     alignItems: "center",
+  },
+  placeholderText: {
+    fontSize: 10,
+    color: "#999999",
+    marginTop: 4,
+    textAlign: "center",
   },
   ratingBadge: {
     position: "absolute",
@@ -348,6 +326,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#757575",
     marginLeft: 4,
+    flex: 1,
   },
   detailsContainer: {
     flexDirection: "row",
@@ -379,12 +358,6 @@ const styles = StyleSheet.create({
   facilityText: {
     fontSize: 12,
     color: "#757575",
-  },
-  moreText: {
-    fontSize: 12,
-    color: "#2E7D32",
-    fontWeight: "500",
-    marginLeft: 4,
   },
   emptyContainer: {
     flex: 1,

@@ -325,7 +325,7 @@ const HomeScreen = () => {
               {venue.courtCount || 0} courts
             </Text>
             <Text style={styles.priceFrom}>
-              from ₹{venue.priceFrom || 0}/hr
+              from PKR {venue.priceFrom || 0}/hr
             </Text>
           </View>
           {venue.distance && (

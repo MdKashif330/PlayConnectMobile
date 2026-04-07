@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { login as apiLogin } from "../../services/authService";
 import { useAuth } from "../../contexts/AuthContext";
@@ -22,12 +23,14 @@ export default function LoginScreen({ navigation }) {
       Alert.alert("Error", "Please fill all fields");
       return;
     }
+
     setLoading(true);
     const result = await apiLogin(email, password);
     setLoading(false);
+
     if (result.success) {
-      // Call authLogin to update global auth state
-      authLogin(result.user.role);
+      // Pass complete user data to authLogin
+      authLogin(result.user, result.user.role);
       // Navigation will be handled automatically by AppNavigator
     } else {
       Alert.alert("Login Failed", result.message);
@@ -57,9 +60,11 @@ export default function LoginScreen({ navigation }) {
         onPress={handleLogin}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>
-          {loading ? "Logging in..." : "Login"}
-        </Text>
+        {loading ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text style={styles.buttonText}>Login</Text>
+        )}
       </TouchableOpacity>
       <TouchableOpacity onPress={() => navigation.navigate("Register")}>
         <Text style={styles.link}>Don't have an account? Register</Text>

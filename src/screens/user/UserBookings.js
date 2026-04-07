@@ -168,7 +168,7 @@ const UserBookings = () => {
         <View style={styles.infoRow}>
           <Icon icon="price" size={16} color="#757575" />
           <Text style={styles.infoText}>
-            ₹{item.totalPrice || item.totalAmount}
+            PKR {item.totalPrice || item.totalAmount}
           </Text>
         </View>
 
