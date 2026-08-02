@@ -15,6 +15,17 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useAppSettings } from "../../hooks/useAppSettings";
 import { getManagerVenues, deleteVenue } from "../../services/managerService";
+import { api } from "../../services/api";
+
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith("http")) return imagePath;
+
+  const baseURL = api.defaults.baseURL;
+  const baseWithoutApi = baseURL.replace("/api", "");
+
+  return `${baseWithoutApi}${imagePath}`;
+};
 
 export default function ManagerVenues({ navigation }) {
   const { theme } = useTheme();
@@ -117,7 +128,10 @@ export default function ManagerVenues({ navigation }) {
       >
         {/* Big Cover Image - First image only */}
         {firstImage ? (
-          <Image source={{ uri: firstImage }} style={styles.coverImage} />
+          <Image
+            source={{ uri: getImageUrl(firstImage) }}
+            style={styles.coverImage}
+          />
         ) : (
           <View style={[styles.coverImage, styles.placeholderCover]}>
             <Icon name="location-city" size={50} color={theme.textSecondary} />

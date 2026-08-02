@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,21 +7,22 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  TouchableOpacity,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
-import { useFocusEffect } from "@react-navigation/native"; // Add this import
-import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
-import { api } from "../../services/api";
+import { useFocusEffect } from "@react-navigation/native";
+import { useAppSettings } from "../../hooks/useAppSettings";
+import { api, refundAPI } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Icon from "../../components/Icon";
 
-export default function ManagerDashboard() {
+export default function ManagerDashboard({ navigation }) {
   const { user } = useAuth();
   const { theme } = useTheme();
-  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
+  const { triggerVibration, autoRefresh } = useAppSettings();
 
-  // Create styles FIRST
   const styles = createStyles(theme);
 
   const [selectedDate, setSelectedDate] = useState("");
@@ -35,12 +36,18 @@ export default function ManagerDashboard() {
   const [bookingsForDate, setBookingsForDate] = useState([]);
   const [markedDates, setMarkedDates] = useState({});
 
+  // Refund states
+  const [refundRequests, setRefundRequests] = useState([]);
+  const [showRefundDropdown, setShowRefundDropdown] = useState(false);
+  const [loadingRefunds, setLoadingRefunds] = useState(false);
+
   // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       if (autoRefresh) {
         triggerVibration();
         fetchDashboardData();
+        fetchRefundRequests();
       }
     }, [autoRefresh]),
   );
@@ -61,6 +68,22 @@ export default function ManagerDashboard() {
     }
   };
 
+  // Fetch refund requests
+  const fetchRefundRequests = async () => {
+    setLoadingRefunds(true);
+    try {
+      const response = await refundAPI.getManagerRefunds();
+      const pendingRefunds = (response.data.refunds || []).filter(
+        (r) => r.status === "PENDING",
+      );
+      setRefundRequests(pendingRefunds);
+    } catch (error) {
+      console.error("Error fetching refunds:", error);
+    } finally {
+      setLoadingRefunds(false);
+    }
+  };
+
   // Fetch all dashboard data
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -77,17 +100,15 @@ export default function ManagerDashboard() {
         setStats({ today: 0, week: 0 });
       }
 
-      // Fetch vacations - endpoint is /vacations (uses auth token)
+      // Fetch vacations
       try {
         const vacationsData = await fetchWithAuth(`/vacations`);
-
         const vacationMarkedDates = {};
         if (vacationsData && Array.isArray(vacationsData)) {
           vacationsData.forEach((vacation) => {
             try {
               const start = new Date(vacation.startDate);
               const end = new Date(vacation.endDate);
-
               for (
                 let d = new Date(start);
                 d <= end;
@@ -96,8 +117,6 @@ export default function ManagerDashboard() {
                 const dateStr = d.toISOString().split("T")[0];
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-
-                // Check if this vacation date is today or in the future
                 if (d >= today) {
                   vacationMarkedDates[dateStr] = {
                     marked: true,
@@ -143,7 +162,7 @@ export default function ManagerDashboard() {
 
   // Handle date selection
   const handleDayPress = (day) => {
-    triggerVibration(); // Vibration on date selection
+    triggerVibration();
     setSelectedDate(day.dateString);
     fetchBookingsForDate(day.dateString);
   };
@@ -152,7 +171,6 @@ export default function ManagerDashboard() {
   useEffect(() => {
     const marked = { ...vacationDates };
 
-    // Add selected date highlight
     if (selectedDate) {
       marked[selectedDate] = {
         ...marked[selectedDate],
@@ -162,7 +180,6 @@ export default function ManagerDashboard() {
       };
     }
 
-    // Add today marker
     const today = new Date().toISOString().split("T")[0];
     marked[today] = {
       ...marked[today],
@@ -176,12 +193,14 @@ export default function ManagerDashboard() {
   // Initial load
   useEffect(() => {
     fetchDashboardData();
+    fetchRefundRequests();
   }, []);
 
   const onRefresh = async () => {
-    triggerVibration(); // Vibration on refresh
+    triggerVibration();
     setRefreshing(true);
     await fetchDashboardData();
+    await fetchRefundRequests();
     setRefreshing(false);
   };
 
@@ -221,18 +240,90 @@ export default function ManagerDashboard() {
           </View>
         </View>
 
+        {/* Refund Cases Section */}
+        <View style={styles.refundSection}>
+          <TouchableOpacity
+            style={styles.refundHeader}
+            onPress={() => setShowRefundDropdown(!showRefundDropdown)}
+          >
+            <View style={styles.refundHeaderLeft}>
+              <Icon icon="refund" size={22} color={theme.primary} />
+              <Text style={styles.refundHeaderTitle}>Refund Cases</Text>
+            </View>
+            <View style={styles.refundHeaderRight}>
+              {refundRequests.length > 0 && (
+                <View style={styles.refundBadge}>
+                  <Text style={styles.refundBadgeText}>
+                    {refundRequests.length}
+                  </Text>
+                </View>
+              )}
+              <Icon
+                icon={showRefundDropdown ? "chevron-up" : "chevron-down"}
+                size={20}
+                color={theme.textSecondary}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {showRefundDropdown && (
+            <View style={styles.refundDropdown}>
+              {loadingRefunds ? (
+                <ActivityIndicator
+                  size="small"
+                  color={theme.primary}
+                  style={styles.refundLoader}
+                />
+              ) : refundRequests.length === 0 ? (
+                <Text style={styles.noRefundsText}>
+                  No pending refund requests
+                </Text>
+              ) : (
+                refundRequests.map((refund) => (
+                  <TouchableOpacity
+                    key={refund._id}
+                    style={styles.refundItem}
+                    onPress={() =>
+                      navigation.navigate("RefundDetails", {
+                        refundId: refund._id,
+                      })
+                    }
+                  >
+                    <View style={styles.refundItemLeft}>
+                      <Icon icon="alert" size={18} color="#FF9800" />
+                      <View>
+                        <Text style={styles.refundItemTitle}>
+                          Refund for Booking #
+                          {refund.booking?._id?.substring(0, 6)}
+                        </Text>
+                        <Text style={styles.refundItemSubtitle}>
+                          Amount: Rs {refund.amount} | User: {refund.user?.name}
+                        </Text>
+                      </View>
+                    </View>
+                    <Icon
+                      icon="chevron-right"
+                      size={18}
+                      color={theme.textSecondary}
+                    />
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          )}
+        </View>
+
         {/* Calendar with Vacations */}
         <View style={styles.calendarContainer}>
           <Text style={styles.sectionTitle}>Calendar & Vacations</Text>
           <Calendar
             current={new Date().toISOString().split("T")[0]}
             onDayPress={(day) => {
-              const selectedDate = new Date(day.dateString);
+              const selectedDateObj = new Date(day.dateString);
               const today = new Date();
               today.setHours(0, 0, 0, 0);
 
-              // Prevent selection of past dates
-              if (selectedDate < today) {
+              if (selectedDateObj < today) {
                 Alert.alert(
                   "Cannot Select Past Date",
                   "Please select today or a future date.",
@@ -241,7 +332,6 @@ export default function ManagerDashboard() {
                 return;
               }
 
-              // If date is today or future, process normally
               handleDayPress(day);
             }}
             markedDates={markedDates}
@@ -325,7 +415,6 @@ export default function ManagerDashboard() {
   );
 }
 
-// Move styles to a function that accepts theme
 const createStyles = (theme) =>
   StyleSheet.create({
     container: {
@@ -379,6 +468,85 @@ const createStyles = (theme) =>
       fontSize: 12,
       color: theme.textSecondary,
       marginTop: 5,
+    },
+    // Refund Section Styles
+    refundSection: {
+      backgroundColor: theme.card,
+      borderRadius: 10,
+      marginBottom: 20,
+      overflow: "hidden",
+      elevation: 2,
+    },
+    refundHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: 15,
+      backgroundColor: theme.card,
+    },
+    refundHeaderLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    refundHeaderTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+    },
+    refundHeaderRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    refundBadge: {
+      backgroundColor: "#FF9800",
+      borderRadius: 12,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+    refundBadgeText: {
+      color: "white",
+      fontSize: 12,
+      fontWeight: "bold",
+    },
+    refundDropdown: {
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+      paddingVertical: 8,
+    },
+    refundLoader: {
+      padding: 20,
+    },
+    noRefundsText: {
+      textAlign: "center",
+      padding: 20,
+      color: theme.textSecondary,
+      fontSize: 14,
+    },
+    refundItem: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    refundItemLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      flex: 1,
+    },
+    refundItemTitle: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: theme.text,
+    },
+    refundItemSubtitle: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      marginTop: 2,
     },
     calendarContainer: {
       backgroundColor: theme.card,
@@ -449,7 +617,7 @@ const createStyles = (theme) =>
     },
     hint: {
       textAlign: "center",
-      color: theme.textSecondary + "80", // 50% opacity
+      color: theme.textSecondary + "80",
       paddingVertical: 20,
     },
   });

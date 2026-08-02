@@ -21,13 +21,13 @@ import {
   rejectBooking,
 } from "../../services/bookingManagerService";
 import { useTheme } from "../../contexts/ThemeContext";
-import { useAppSettings } from "../../hooks/useAppSettings"; // Add this import
+import { useAppSettings } from "../../hooks/useAppSettings";
 
 export default function CourtBookings() {
   const route = useRoute();
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { triggerVibration, autoRefresh } = useAppSettings(); // Add this line
+  const { triggerVibration, autoRefresh } = useAppSettings();
   const { courtId, courtName } = route.params;
 
   const [bookings, setBookings] = useState([]);

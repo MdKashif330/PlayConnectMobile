@@ -17,7 +17,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomHeader from "../../components/CustomHeader";
 import Icon from "../../components/Icon";
 import LocationPicker from "../../components/user/LocationPicker";
-import { venueAPI, eventAPI, bookingAPI } from "../../services/api";
+import { api, venueAPI, eventAPI, bookingAPI } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 
 // Configure calendar locale
@@ -124,14 +124,23 @@ const HomeScreen = () => {
 
       const params = { limit: 20 };
 
+      // If location is selected with coordinates, use nearby search
       if (selectedLocation.lat && selectedLocation.lng) {
         params.lat = selectedLocation.lat;
         params.lng = selectedLocation.lng;
         params.radius = selectedLocation.radius;
       }
 
+      // Also support searching by name if location name is provided
+      if (selectedLocation.name && selectedLocation.name !== "All Locations") {
+        params.search = selectedLocation.name;
+      }
+
+      console.log("Fetching venues with params:", params);
+
       const response = await venueAPI.getAllPublicVenues(params);
-      setVenues(response.data);
+      console.log("Venues response count:", response.data?.length || 0);
+      setVenues(response.data || []);
     } catch (error) {
       console.error("Error fetching venues:", error);
       setVenues([]);
@@ -143,9 +152,7 @@ const HomeScreen = () => {
   const fetchEvents = async () => {
     try {
       setLoadingEvents(true);
-      const response = await eventAPI.getAllEvents({
-        params: { limit: 5 },
-      });
+      const response = await eventAPI.getAllEvents({ limit: 5 });
       setEvents(response.data || []);
     } catch (error) {
       console.error("Error fetching events:", error);
@@ -158,12 +165,10 @@ const HomeScreen = () => {
   const fetchBookedDates = async () => {
     try {
       setLoadingBookedDates(true);
-
       if (!user) {
         setBookedDates({});
         return;
       }
-
       const response = await bookingAPI.getBookedDates(currentMonth);
       setBookedDates(response.data || {});
     } catch (error) {
@@ -178,14 +183,12 @@ const HomeScreen = () => {
   const getMarkedDates = () => {
     const marked = {};
 
-    // Mark today's date with a dot
     marked[today] = {
       marked: true,
       dotColor: "#2E7D32",
       selected: false,
     };
 
-    // Mark the selected date
     marked[selectedDate] = {
       ...marked[selectedDate],
       selected: true,
@@ -193,7 +196,6 @@ const HomeScreen = () => {
       marked: marked[selectedDate]?.marked || false,
     };
 
-    // Add booked dates from API
     Object.keys(bookedDates).forEach((date) => {
       if (date !== today && date !== selectedDate) {
         marked[date] = {
@@ -201,7 +203,6 @@ const HomeScreen = () => {
           selected: false,
         };
       } else if (date === today) {
-        // Merge today's marking with booked status
         marked[date] = {
           ...marked[date],
           ...bookedDates[date],
@@ -209,7 +210,6 @@ const HomeScreen = () => {
           selected: date === selectedDate,
         };
       } else if (date === selectedDate) {
-        // Merge selected date's marking with booked status
         marked[date] = {
           ...marked[date],
           ...bookedDates[date],
@@ -233,7 +233,9 @@ const HomeScreen = () => {
   };
 
   const handleLocationSelected = (locationData) => {
+    console.log("Location selected:", locationData);
     setSelectedLocation(locationData);
+    setLocationPickerVisible(false);
   };
 
   const handleSeeAllVenues = () => {
@@ -279,7 +281,7 @@ const HomeScreen = () => {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith("http")) return imagePath;
-    return `http://localhost:5000/uploads/${imagePath}`;
+    return `http://192.168.0.119:5000/uploads/${imagePath}`;
   };
 
   const VenueCard = ({ venue }) => {

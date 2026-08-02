@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { api } from "../../services/api";
 import {
   View,
   Text,
@@ -12,13 +13,18 @@ import {
   ScrollView,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import CustomHeader from "../../components/CustomHeader";
 import Icon from "../../components/Icon";
 import { venueAPI, courtAPI, bookingAPI } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { vacationAPI } from "../../services/api";
 
 const ALL_TIME_SLOTS = [
+  "00:00 - 01:00",
+  "01:00 - 02:00",
+  "02:00 - 03:00",
+  "03:00 - 04:00",
+  "04:00 - 05:00",
+  "05:00 - 06:00",
   "06:00 - 07:00",
   "07:00 - 08:00",
   "08:00 - 09:00",
@@ -35,15 +41,20 @@ const ALL_TIME_SLOTS = [
   "19:00 - 20:00",
   "20:00 - 21:00",
   "21:00 - 22:00",
+  "22:00 - 23:00",
+  "23:00 - 24:00",
 ];
 
 const getImageUrl = (imagePath) => {
   if (!imagePath) return null;
   if (imagePath.startsWith("http")) return imagePath;
-  return `http://localhost:5000/uploads/${imagePath}`;
+
+  const baseURL = api.defaults.baseURL;
+  const baseWithoutApi = baseURL.replace("/api", "");
+
+  return `${baseWithoutApi}${imagePath}`;
 };
 
-// Helper functions for slot grouping
 const getSlotStartHour = (slot) => {
   const [startTime] = slot.split(" - ");
   return parseInt(startTime.split(":")[0]);
@@ -66,11 +77,9 @@ const areConsecutiveSlots = (slot1, slot2) => {
 
 const groupConsecutiveSlots = (slots) => {
   if (!slots.length) return [];
-
   const sortedSlots = sortSlots(slots);
   const groups = [];
   let currentGroup = [sortedSlots[0]];
-
   for (let i = 1; i < sortedSlots.length; i++) {
     if (areConsecutiveSlots(sortedSlots[i - 1], sortedSlots[i])) {
       currentGroup.push(sortedSlots[i]);
@@ -80,14 +89,12 @@ const groupConsecutiveSlots = (slots) => {
     }
   }
   groups.push(currentGroup);
-
   return groups;
 };
 
 const formatSlotGroup = (group) => {
   if (group.length === 0) return "";
   if (group.length === 1) return group[0];
-
   const firstSlot = group[0];
   const lastSlot = group[group.length - 1];
   const startTime = firstSlot.split(" - ")[0];
@@ -127,6 +134,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
   );
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [vacationInfo, setVacationInfo] = useState(null);
+  const [timeSlotsKey, setTimeSlotsKey] = useState(0); // Add this key for forcing re-render
   const [bookingDetails, setBookingDetails] = useState({
     name: user?.name || "",
     phone: "",
@@ -185,7 +193,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
       const response = await venueAPI.getAllPublicVenues({ limit: 50 });
       setVenues(response.data);
     } catch (error) {
-      Alert.alert("Error", "Failed to load venues");
+      console.error("Error fetching venues:", error);
     } finally {
       setLoading(false);
     }
@@ -226,6 +234,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
             booked: new Set(),
           });
           setSelectedSlots([]);
+          setTimeSlotsKey((prev) => prev + 1); // Force re-render
           return;
         }
       } catch (error) {
@@ -247,7 +256,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
         // Continue if booking fetch fails
       }
 
-      // Calculate current time for today
+      // Calculate current time for today only
       let currentTimeInMinutes = 0;
       if (isToday) {
         const now = new Date();
@@ -265,7 +274,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
 
         if (bookedSlotsSet.has(slot)) {
           bookedSlotsSetResult.add(slot);
-        } else if (isToday && slotStartTimeInMinutes <= currentTimeInMinutes) {
+        } else if (isToday && slotStartTimeInMinutes < currentTimeInMinutes) {
           pastSlotsSet.add(slot);
         } else {
           availableSet.add(slot);
@@ -278,6 +287,9 @@ const CreateBookingScreen = ({ navigation, route }) => {
         booked: bookedSlotsSetResult,
       });
 
+      // Force re-render of time slots
+      setTimeSlotsKey((prev) => prev + 1);
+
       // Clear selected slots that are no longer available
       const stillAvailable = selectedSlots.filter((slot) =>
         availableSet.has(slot),
@@ -286,6 +298,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
         setSelectedSlots(stillAvailable);
       }
     } catch (error) {
+      console.error("Error in fetchAvailableSlots:", error);
       setSlotStatus({
         available: new Set(ALL_TIME_SLOTS),
         past: new Set(),
@@ -308,6 +321,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
 
   const handleDateChange = async (event, selectedDate) => {
     setShowDatePicker(false);
+
     if (selectedDate) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -322,14 +336,24 @@ const CreateBookingScreen = ({ navigation, route }) => {
         return;
       }
 
-      setSelectedDate(selectedDate);
+      // Reset all states before setting new date
       setSelectedSlots([]);
+      setVacationInfo(null);
+      setSlotStatus({
+        available: new Set(),
+        past: new Set(),
+        booked: new Set(),
+      });
+
+      // Set the new date
+      setSelectedDate(selectedDate);
 
       if (selectedVenue) {
         try {
+          const dateStr = selectedDate.toISOString().split("T")[0];
           const vacationResponse = await vacationAPI.checkVacation(
             selectedVenue._id,
-            selectedDate.toISOString().split("T")[0],
+            dateStr,
           );
 
           if (vacationResponse.data.isVacation) {
@@ -340,6 +364,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
               past: new Set(),
               booked: new Set(),
             });
+            setTimeSlotsKey((prev) => prev + 1);
             Alert.alert(
               "🏖️ Vacation Day",
               `This venue is closed on ${selectedDate.toLocaleDateString(
@@ -355,10 +380,12 @@ const CreateBookingScreen = ({ navigation, route }) => {
             );
           } else {
             setVacationInfo(null);
-            fetchAvailableSlots();
+            // Fetch slots after date is set
+            await fetchAvailableSlots();
           }
         } catch (error) {
           setVacationInfo(null);
+          await fetchAvailableSlots();
         }
       }
     }
@@ -413,28 +440,22 @@ const CreateBookingScreen = ({ navigation, route }) => {
     try {
       setLoading(true);
 
-      // Group consecutive slots
       const slotGroups = groupConsecutiveSlots(selectedSlots);
-
-      // Create a booking for each group
       const bookingPromises = slotGroups.map((group) => {
-        const timeSlot = formatSlotGroup(group);
         const totalPrice = calculateGroupPrice(
           group,
           selectedCourt.pricePerSlot,
         );
-
         const bookingData = {
           courtId: selectedCourt._id,
           date: selectedDate.toISOString().split("T")[0],
           slots: group,
           totalPrice: totalPrice,
+          paymentMethod: bookingDetails.paymentMethod,
         };
-
         return bookingAPI.createUserBooking(bookingData);
       });
 
-      // Wait for all bookings to complete
       await Promise.all(bookingPromises);
 
       const bookingCount = slotGroups.length;
@@ -674,6 +695,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
           <ScrollView
             style={styles.stepContainer}
             showsVerticalScrollIndicator={true}
+            key={`time-slots-${timeSlotsKey}`} // Add key to force re-render
           >
             <View style={styles.selectedInfo}>
               <Text style={styles.selectedLabel}>Selected:</Text>
@@ -773,7 +795,6 @@ const CreateBookingScreen = ({ navigation, route }) => {
               </View>
             </View>
 
-            {/* Multi-select info */}
             <View style={styles.multiSelectInfo}>
               <Icon icon="info" size={14} color="#2E7D32" />
               <Text style={styles.multiSelectInfoText}>
@@ -790,7 +811,7 @@ const CreateBookingScreen = ({ navigation, route }) => {
               ) : (
                 <View style={styles.timeSlotsGrid}>
                   {ALL_TIME_SLOTS.map((slot) => (
-                    <TimeSlot key={slot} item={slot} />
+                    <TimeSlot key={`${slot}-${timeSlotsKey}`} item={slot} />
                   ))}
                 </View>
               )}
@@ -833,7 +854,6 @@ const CreateBookingScreen = ({ navigation, route }) => {
 
       case 4:
         const slotGroups = groupConsecutiveSlots(selectedSlots);
-
         return (
           <ScrollView
             style={styles.stepContainer}
@@ -1002,7 +1022,6 @@ const CreateBookingScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
-      <CustomHeader showBack title="Create Booking" />
       <View style={styles.content}>
         {renderStepIndicator()}
         {renderStepContent()}

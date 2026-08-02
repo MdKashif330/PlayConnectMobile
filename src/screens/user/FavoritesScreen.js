@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { api } from "../../services/api";
 import {
   View,
   Text,
@@ -78,7 +79,11 @@ const FavoritesScreen = ({ navigation }) => {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith("http")) return imagePath;
-    return `http://localhost:5000/uploads/${imagePath}`;
+
+    const baseURL = api.defaults.baseURL;
+    const baseWithoutApi = baseURL.replace("/api", "");
+
+    return `${baseWithoutApi}${imagePath}`;
   };
 
   const handleImageError = (venueId) => {
@@ -143,7 +148,9 @@ const FavoritesScreen = ({ navigation }) => {
             </View>
             <View style={styles.detailItem}>
               <Icon icon="price" size={14} color="#757575" />
-              <Text style={styles.detailText}>₹{item.priceFrom || 0}/hr</Text>
+              <Text style={styles.detailText}>
+                PKR {item.priceFrom || 0}/hr
+              </Text>
             </View>
           </View>
 

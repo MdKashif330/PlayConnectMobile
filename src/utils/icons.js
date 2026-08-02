@@ -8,6 +8,7 @@ export const Icons = {
   notifications: "notifications",
   back: "arrow-back",
   close: "close",
+  refund: "cash",
 
   // Actions
   add: "add",

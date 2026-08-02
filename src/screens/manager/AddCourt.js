@@ -25,6 +25,16 @@ import { useTheme } from "../../contexts/ThemeContext";
 import { useAppSettings } from "../../hooks/useAppSettings";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith("http")) return imagePath;
+
+  const baseURL = api.defaults.baseURL;
+  const baseWithoutApi = baseURL.replace("/api", "");
+
+  return `${baseWithoutApi}${imagePath}`;
+};
+
 export default function AddCourt() {
   const route = useRoute();
   const navigation = useNavigation();
@@ -381,7 +391,10 @@ export default function AddCourt() {
           >
             {courtImages.map((image, index) => (
               <View key={index} style={styles.imageContainer}>
-                <Image source={{ uri: image }} style={styles.courtImage} />
+                <Image
+                  source={{ uri: getImageUrl(image) }}
+                  style={styles.courtImage}
+                />
                 <TouchableOpacity
                   style={styles.removeImageButton}
                   onPress={() => removeImage(index)}

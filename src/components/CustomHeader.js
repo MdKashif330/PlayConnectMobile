@@ -10,17 +10,14 @@ const CustomHeader = () => {
 
   const handleProfilePress = () => {
     if (!isLoggedIn) {
-      // If not logged in, navigate to login
       navigation.navigate("Login");
       return;
     }
 
     if (userRole === "manager") {
-      // For managers, Profile is a screen in the root stack
       navigation.navigate("Profile");
     } else {
-      // For users, Profile is a tab inside UserTabs
-      navigation.navigate("UserTabs", { screen: "Profile" });
+      navigation.navigate("UserProfile");
     }
   };
 

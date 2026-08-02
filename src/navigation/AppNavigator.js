@@ -23,13 +23,12 @@ import AddCourt from "../screens/manager/AddCourt";
 import CourtBookings from "../screens/manager/CourtBookings";
 import AddVenue from "../screens/manager/AddVenue";
 import CreateBooking from "../screens/manager/CreateBooking";
+import PaymentVerificationScreen from "../screens/manager/PaymentVerificationScreen";
 
-// NEW EVENT SCREENS
 import EventsList from "../screens/manager/EventsList";
 import EventForm from "../screens/manager/EventForm";
 import EventDetails from "../screens/manager/EventDetails";
 
-// PROFILE SCREENS
 import EditProfile from "../screens/manager/EditProfile";
 import ChangePassword from "../screens/manager/ChangePassword";
 import Language from "../screens/manager/Language";
@@ -37,7 +36,6 @@ import AppSettings from "../screens/manager/AppSettings";
 import AboutUs from "../screens/manager/AboutUs";
 import FAQs from "../screens/manager/FAQs";
 
-// NEW USER SCREENS (to be created)
 import HomeScreen from "../screens/user/HomeScreen";
 import ChatbotScreen from "../screens/user/ChatbotScreen";
 import FavoritesScreen from "../screens/user/FavoritesScreen";
@@ -46,11 +44,14 @@ import EventDetailScreen from "../screens/user/EventDetailScreen";
 import BookingDetailScreen from "../screens/user/BookingDetailScreen";
 import CreateBookingScreen from "../screens/user/CreateBookingScreen";
 import UserEventsList from "../screens/user/UserEventsList";
+import PaymentSubmissionScreen from "../screens/user/PaymentSubmissionScreen";
+import RefundScreen from "../screens/user/RefundScreen";
+import RefundDetails from "../screens/manager/RefundDetails";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// UPDATED: UserTabs with 4 tabs (Home, Bookings, Chatbot, Favorites)
+// UserTabs with 5 tabs (Home, Bookings, Chatbot, Favorites, Refund)
 function UserTabs() {
   const navigation = useNavigation();
   const [currentTab, setCurrentTab] = useState("Home");
@@ -83,7 +84,7 @@ function UserTabs() {
             else if (route.name === "Bookings") iconKey = "bookings";
             else if (route.name === "Chatbot") iconKey = "chat";
             else if (route.name === "Favorites") iconKey = "favorite";
-            else if (route.name === "Profile") iconKey = "profile"; // Add this
+            else if (route.name === "Refund") iconKey = "refund";
             return <Icon icon={iconKey} size={size} color={color} />;
           },
           tabBarActiveTintColor: "#2E7D32",
@@ -126,13 +127,12 @@ function UserTabs() {
             focus: () => setCurrentTab("Favorites"),
           }}
         />
-        {/* ADD PROFILE TAB HERE */}
         <Tab.Screen
-          name="Profile"
-          component={UserProfile}
-          options={{ tabBarLabel: "Profile" }}
+          name="Refund"
+          component={RefundScreen}
+          options={{ tabBarLabel: "Refund" }}
           listeners={{
-            focus: () => setCurrentTab("Profile"),
+            focus: () => setCurrentTab("Refund"),
           }}
         />
       </Tab.Navigator>
@@ -276,7 +276,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Register" component={RegisterScreen} />
           </>
         ) : userRole === "user" ? (
-          // User Stack (UPDATED with new screens)
+          // User Stack (UPDATED with Refund screen and UserProfile)
           <>
             <Stack.Screen
               name="UserTabs"
@@ -292,7 +292,6 @@ export default function AppNavigator() {
                 headerBackTitle: "Back",
               }}
             />
-            {/* NEW USER SCREENS */}
             <Stack.Screen
               name="VenueDetail"
               component={VenueDetailScreen}
@@ -392,6 +391,25 @@ export default function AppNavigator() {
                 headerBackTitle: "Back",
               }}
             />
+            <Stack.Screen
+              name="PaymentSubmission"
+              component={PaymentSubmissionScreen}
+              options={{
+                headerShown: true,
+                title: "Make Payment",
+                headerBackTitle: "Back",
+              }}
+            />
+            {/* ADDED: UserProfile Screen */}
+            <Stack.Screen
+              name="UserProfile"
+              component={UserProfile}
+              options={{
+                headerShown: true,
+                title: "My Profile",
+                headerBackTitle: "Back",
+              }}
+            />
           </>
         ) : userRole === "manager" ? (
           // Manager Stack (unchanged)
@@ -445,7 +463,7 @@ export default function AppNavigator() {
               }}
             />
 
-            {/* NEW EVENT SCREENS */}
+            {/* Event Screens */}
             <Stack.Screen
               name="EventsList"
               component={EventsList}
@@ -535,6 +553,24 @@ export default function AppNavigator() {
               options={{
                 headerShown: true,
                 title: "FAQs",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="PaymentVerification"
+              component={PaymentVerificationScreen}
+              options={{
+                headerShown: true,
+                title: "Verify Payment",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
+              name="RefundDetails"
+              component={RefundDetails}
+              options={{
+                headerShown: true,
+                title: "Refund Details",
                 headerBackTitle: "Back",
               }}
             />

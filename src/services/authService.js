@@ -26,14 +26,8 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      console.log("🔄 Token expired or invalid, logging out...");
-
-      // Clear stored tokens
       await AsyncStorage.removeItem("token");
       await AsyncStorage.removeItem("user");
-
-      // You can also emit an event or use a navigation ref to redirect to login
-      // For now, we'll just reject the promise
     }
     return Promise.reject(error);
   },

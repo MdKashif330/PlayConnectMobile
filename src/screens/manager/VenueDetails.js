@@ -22,8 +22,19 @@ import {
 } from "@react-navigation/native";
 import { getVenueDetails, getVenueCourts } from "../../services/managerService";
 import { deleteCourt } from "../../services/bookingManagerService";
+import { api } from "../../services/api";
 
 const { width } = Dimensions.get("window");
+
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith("http")) return imagePath;
+
+  const baseURL = api.defaults.baseURL;
+  const baseWithoutApi = baseURL.replace("/api", "");
+
+  return `${baseWithoutApi}${imagePath}`;
+};
 
 export default function VenueDetails() {
   const route = useRoute();
@@ -273,7 +284,10 @@ export default function VenueDetails() {
                 setShowImageModal(true);
               }}
             >
-              <Image source={{ uri: image }} style={styles.venueImage} />
+              <Image
+                source={{ uri: getImageUrl(image) }}
+                style={styles.venueImage}
+              />
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -400,7 +414,7 @@ export default function VenueDetails() {
                           style={styles.courtImageContainer}
                         >
                           <Image
-                            source={{ uri: image }}
+                            source={{ uri: getImageUrl(image) }}
                             style={styles.courtCoverImageFull}
                             resizeMode="cover"
                           />
@@ -590,7 +604,10 @@ export default function VenueDetails() {
             <Icon icon="close" size={30} color="white" />
           </TouchableOpacity>
           {selectedImage && (
-            <Image source={{ uri: selectedImage }} style={styles.modalImage} />
+            <Image
+              source={{ uri: getImageUrl(selectedImage) }}
+              style={styles.modalImage}
+            />
           )}
         </View>
       </Modal>

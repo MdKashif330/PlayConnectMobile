@@ -48,11 +48,7 @@ const ChatbotScreen = ({ navigation }) => {
           const location = await Location.getCurrentPositionAsync({});
           const { latitude, longitude } = location.coords;
 
-          console.log("📍 Location obtained:", latitude, longitude);
-
-          // Send location to backend
           await api.post("/users/location", { latitude, longitude });
-          console.log("✅ Location sent to backend");
         }
       } catch (error) {
         console.log("Location error:", error);
@@ -86,21 +82,15 @@ const ChatbotScreen = ({ navigation }) => {
           const location = await Location.getCurrentPositionAsync({});
           latitude = location.coords.latitude;
           longitude = location.coords.longitude;
-          console.log("📍 Got location:", latitude, longitude);
         }
       } catch (locError) {
         console.log("Location error:", locError);
       }
-
-      console.log("📤 Sending to AI:", inputText);
-
       const response = await api.post("/chatbot/query", {
         message: inputText,
         latitude: latitude,
         longitude: longitude,
       });
-
-      console.log("📥 AI Response:", response.data);
 
       const botMessage = {
         id: (Date.now() + 1).toString(),
@@ -197,7 +187,7 @@ const ChatbotScreen = ({ navigation }) => {
             )}
             <View style={styles.venueCardDetail}>
               <Icon icon="price" size={12} color="#757575" />
-              <Text style={styles.venueCardPrice}>₹{venue.price}/hour</Text>
+              <Text style={styles.venueCardPrice}>PKR {venue.price}/hour</Text>
             </View>
           </View>
           <TouchableOpacity

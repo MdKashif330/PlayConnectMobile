@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { api } from "../../services/api";
 import {
   View,
   Text,
@@ -137,7 +138,11 @@ const VenueDetailScreen = ({ navigation, route }) => {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith("http")) return imagePath;
-    return `http://localhost:5000/uploads/${imagePath}`;
+
+    const baseURL = api.defaults.baseURL;
+    const baseWithoutApi = baseURL.replace("/api", "");
+
+    return `${baseWithoutApi}${imagePath}`;
   };
 
   const getPaymentMethodIcon = (method) => {

@@ -1,4 +1,5 @@
-import api from "./authService"; // Import your existing axios instance
+import api from "./authService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ==================== VACATION API ====================
 export const vacationAPI = {
@@ -80,6 +81,9 @@ export const bookingAPI = {
   simulatePayment: (bookingId, method) =>
     api.post("/bookings/simulate-payment", { bookingId, method }),
 
+  // NEW: Cancel user booking
+  cancelUserBooking: (bookingId) => api.put(`/bookings/${bookingId}/cancel`), // ADD THIS LINE
+
   // NEW: Get booked dates for calendar
   getBookedDates: (month, venueId) =>
     api.get("/bookings/dates", { params: { month, venueId } }),
@@ -120,6 +124,15 @@ export const eventAPI = {
 export const chatbotAPI = {
   // Send query to AI
   query: (message, context) => api.post("/chatbot/query", { message, context }),
+};
+
+// Refund API
+export const refundAPI = {
+  createRefundRequest: (data) => api.post("/refunds", data),
+  getUserRefunds: () => api.get("/refunds/my-refunds"),
+  getManagerRefunds: () => api.get("/refunds/manager/refunds"),
+  updateRefundStatus: (id, data) => api.put(`/refunds/${id}/status`, data),
+  getRefundById: (id) => api.get(`/refunds/${id}`),
 };
 
 // ==================== REVIEW API (NEW) ====================
