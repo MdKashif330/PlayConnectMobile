@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import Icon from "../../components/Icon";
-import { register } from "../../services/authService";
+import { sendRegistrationOtp } from "../../services/authService";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useAppSettings } from "../../hooks/useAppSettings";
 
@@ -27,7 +27,7 @@ export default function RegisterScreen({ navigation }) {
 
   const styles = createStyles(theme);
 
-  const handleRegister = async () => {
+  const handleVerifyEmail = async () => {
     triggerVibration();
 
     if (!name || !email || !password) {
@@ -36,16 +36,24 @@ export default function RegisterScreen({ navigation }) {
     }
 
     setLoading(true);
-    const result = await register({ name, email, password, role });
+    const result = await sendRegistrationOtp({
+      name: name.trim(),
+      email: email.trim(),
+      password,
+      role,
+    });
     setLoading(false);
 
     if (result.success) {
       triggerVibration();
-      Alert.alert("Success", result.message, [
-        { text: "OK", onPress: () => navigation.navigate("Login") },
-      ]);
+      navigation.navigate("VerifyOtp", {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        role,
+      });
     } else {
-      Alert.alert("Registration Failed", result.message);
+      Alert.alert("Verification Failed", result.message);
     }
   };
 
@@ -53,7 +61,6 @@ export default function RegisterScreen({ navigation }) {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Create Account</Text>
 
-      {/* Name Input */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Full Name</Text>
         <View style={styles.inputContainer}>
@@ -68,7 +75,6 @@ export default function RegisterScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Email Input */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Email</Text>
         <View style={styles.inputContainer}>
@@ -85,7 +91,6 @@ export default function RegisterScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Password Input with Eye Icon */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Password</Text>
         <View style={styles.inputContainer}>
@@ -108,7 +113,6 @@ export default function RegisterScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Role Selection */}
       <View style={styles.roleContainer}>
         <Text style={styles.roleLabel}>Register as:</Text>
         <View style={styles.roleButtons}>
@@ -147,20 +151,18 @@ export default function RegisterScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Register Button */}
       <TouchableOpacity
         style={styles.button}
-        onPress={handleRegister}
+        onPress={handleVerifyEmail}
         disabled={loading}
       >
         {loading ? (
           <ActivityIndicator color="white" />
         ) : (
-          <Text style={styles.buttonText}>Register</Text>
+          <Text style={styles.buttonText}>Verify Your Email</Text>
         )}
       </TouchableOpacity>
 
-      {/* Login Link */}
       <TouchableOpacity onPress={() => navigation.navigate("Login")}>
         <Text style={styles.link}>Already have an account? Login</Text>
       </TouchableOpacity>

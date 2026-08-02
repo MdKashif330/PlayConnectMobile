@@ -49,7 +49,6 @@ export default function LoginScreen({ navigation }) {
     <View style={styles.container}>
       <Text style={styles.title}>PlayConnect</Text>
 
-      {/* Email Input */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Email</Text>
         <View style={styles.inputContainer}>
@@ -66,7 +65,6 @@ export default function LoginScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Password Input with Eye Icon */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Password</Text>
         <View style={styles.inputContainer}>
@@ -89,7 +87,6 @@ export default function LoginScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Login Button */}
       <TouchableOpacity
         style={styles.button}
         onPress={handleLogin}
@@ -102,7 +99,6 @@ export default function LoginScreen({ navigation }) {
         )}
       </TouchableOpacity>
 
-      {/* Register Link */}
       <TouchableOpacity onPress={() => navigation.navigate("Register")}>
         <Text style={styles.link}>Don't have an account? Register</Text>
       </TouchableOpacity>

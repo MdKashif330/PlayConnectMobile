@@ -49,7 +49,7 @@ export default function FAQs() {
           id: 2,
           question: "How do I create an account?",
           answer:
-            "You can create an account by downloading the PlayConnect app and clicking on 'Sign Up'. You'll need to provide your name, email address, and create a password. You can register as either a user or a venue manager.",
+            "You can create an account by downloading the PlayConnect app and clicking on 'Sign Up'. Provide your name, email, and password, then tap Verify Your Email and enter the OTP sent to your inbox. You can register as either a user or a venue manager.",
         },
         {
           id: 3,
@@ -118,7 +118,7 @@ export default function FAQs() {
           id: 11,
           question: "How do I register as a manager?",
           answer:
-            "During sign up, select 'Manager Account' and provide your venue details. Your account will be reviewed and approved by our admin team within 24-48 hours.",
+            "During sign up, select 'Manager Account', tap Verify Your Email, and enter the OTP from your email. Once verified, your manager account is created and ready to use.",
         },
         {
           id: 12,

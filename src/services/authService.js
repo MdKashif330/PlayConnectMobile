@@ -7,7 +7,6 @@ const api = axios.create({
   baseURL: API_URL,
 });
 
-// Request interceptor to attach token
 api.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem("token");
@@ -16,12 +15,9 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  },
+  (error) => Promise.reject(error),
 );
 
-// Response interceptor to handle 401 errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -33,7 +29,9 @@ api.interceptors.response.use(
   },
 );
 
-// Auth functions
+const getErrorMessage = (error, fallback) =>
+  error.response?.data?.message || fallback;
+
 export const login = async (email, password) => {
   try {
     const response = await api.post("/auth/login", { email, password });
@@ -44,21 +42,62 @@ export const login = async (email, password) => {
 
     return { success: true, user, token };
   } catch (error) {
-    const message =
-      error.response && error.response.data && error.response.data.message
-        ? error.response.data.message
-        : "Login failed";
-    return { success: false, message };
+    return {
+      success: false,
+      message: getErrorMessage(error, "Login failed"),
+    };
   }
 };
-export const register = async (userData) => {
+
+/** Step 1: send OTP to email (account not created yet) */
+export const sendRegistrationOtp = async (userData) => {
   try {
-    const response = await api.post("/auth/register", userData);
-    return { success: true, message: response.data.message };
+    const response = await api.post("/auth/send-registration-otp", userData);
+    return {
+      success: true,
+      message: response.data.message || "OTP sent to your email.",
+    };
   } catch (error) {
     return {
       success: false,
-      message: error.response?.data?.message || "Registration failed",
+      message: getErrorMessage(error, "Failed to send OTP"),
+    };
+  }
+};
+
+/** Step 2: verify OTP and create account */
+export const completeRegistration = async ({ email, otp }) => {
+  try {
+    const response = await api.post("/auth/complete-registration", {
+      email,
+      otp,
+    });
+    return {
+      success: true,
+      message: response.data.message || "Registration successful.",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: getErrorMessage(error, "Registration failed"),
+    };
+  }
+};
+
+/** Resend OTP from OTP screen only */
+export const resendRegistrationOtp = async (email) => {
+  try {
+    const response = await api.post("/auth/resend-registration-otp", {
+      email,
+    });
+    return {
+      success: true,
+      message: response.data.message || "A new OTP has been sent.",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: getErrorMessage(error, "Failed to resend OTP"),
     };
   }
 };

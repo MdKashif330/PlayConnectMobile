@@ -8,6 +8,7 @@ import { View, TouchableOpacity, StyleSheet, Animated } from "react-native";
 
 import LoginScreen from "../screens/auth/LoginScreen";
 import RegisterScreen from "../screens/auth/RegisterScreen";
+import VerifyOtpScreen from "../screens/auth/VerifyOtpScreen";
 import UserDashboard from "../screens/user/UserDashboard";
 import UserBookings from "../screens/user/UserBookings";
 import UserProfile from "../screens/user/UserProfile";
@@ -274,6 +275,7 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="VerifyOtp" component={VerifyOtpScreen} />
           </>
         ) : userRole === "user" ? (
           // User Stack (UPDATED with Refund screen and UserProfile)
